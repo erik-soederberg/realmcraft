@@ -111,6 +111,8 @@ export interface QuestDef {
   rewards: { xp?: Partial<Record<SkillId, number>>; items?: ItemId[] };
 }
 
+export type HairStyle = "short" | "long" | "ponytail" | "bald";
+
 export interface HumanLook {
   skin: string;
   shirt: string;
@@ -118,6 +120,8 @@ export interface HumanLook {
   hair: string;
   apron?: string;
   hood?: boolean;
+  hairStyle?: HairStyle;
+  beard?: boolean;
 }
 
 export interface NpcDef {

@@ -175,9 +175,13 @@ export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): 
   if (look.hood) {
     const hood = new THREE.Mesh(new THREE.SphereGeometry(0.175, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), mat(look.shirt, { map: detailTex }));
     hood.position.set(0, 1.21, -0.02); g.add(hood);
-  } else {
+  } else if (look.hairStyle !== "bald") {
     const hr = new THREE.Mesh(new THREE.IcosahedronGeometry(0.155, 2), hair); hr.position.set(0, 1.25, -0.03); hr.scale.set(1, 0.75, 1); g.add(hr);
+    if (look.hairStyle === "long") { const back = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.34, 0.08), hair); back.position.set(0, 1.07, -0.12); g.add(back); }
+    if (look.hairStyle === "ponytail") { const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.26, 7), hair); tail.position.set(0, 1.1, -0.17); tail.rotation.x = 0.35; g.add(tail); }
   }
+  for (const ex of [-0.055, 0.055]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 4), mat("#1a1410")); eye.position.set(ex, 1.22, 0.135); g.add(eye); }
+  if (look.beard) { const beard = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), hair); beard.position.set(0, 1.17, 0.04); beard.scale.set(1, 0.9, 0.85); g.add(beard); }
   if (look.apron) { const ap = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.55, 0.03), mat(look.apron, { map: detailTex })); ap.position.set(0, 0.68, 0.2); g.add(ap); }
   let cape: THREE.Mesh | undefined;
   if (look.cape) { cape = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.72, 0.025), mat(look.cape, { map: detailTex })); cape.position.set(0, 0.7, -0.21); cape.rotation.x = 0.14; g.add(cape); }

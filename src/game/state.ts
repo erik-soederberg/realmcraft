@@ -1,13 +1,22 @@
+import { restoreAppearance, type Appearance } from "../data/appearance";
 import { ITEMS } from "../data/items";
 import { MOBS } from "../data/mobs";
 import { QUEST_BY_ID } from "../data/quests";
 import { SKILLS, XP_TABLE, levelForXp } from "../data/skills";
 import type { ItemId, MobId, SkillId } from "../data/types";
+import { validateName } from "./names";
 
 export const INVENTORY_SIZE = 28;
 const SAVE_KEY = "ekdal-save-v2";
 
+export interface Profile {
+  name: string;
+  appearance: Appearance;
+}
+
 export interface GameState {
+  /** Null until the player has created a character. */
+  profile: Profile | null;
   xp: Record<SkillId, number>;
   hp: number;
   weapon: ItemId | null;
@@ -31,7 +40,7 @@ export function freshState(spawn: [number, number]): GameState {
   const xp = Object.fromEntries(Object.keys(SKILLS).map(k => [k, 0])) as Record<SkillId, number>;
   xp.hp = XP_TABLE[10];
   return {
-    xp, hp: 10, weapon: null, inv: new Array(INVENTORY_SIZE).fill(null),
+    profile: null, xp, hp: 10, weapon: null, inv: new Array(INVENTORY_SIZE).fill(null),
     bank: {}, gathered: {}, made: {}, kills: {}, deposited: 0, goals: {}, quests: {}, questStart: {},
     pos: spawn, run: true, hint: true,
   };
@@ -51,6 +60,8 @@ export function restoreState(data: unknown, spawn: [number, number]): GameState 
   const f = freshState(spawn);
   if (!data || typeof data !== "object") return f;
   const d = data as Record<string, any>;
+  if (d.profile && typeof d.profile === "object" && typeof d.profile.name === "string" && validateName(d.profile.name).ok)
+    f.profile = { name: d.profile.name.trim(), appearance: restoreAppearance(d.profile.appearance) };
   if (d.xp && typeof d.xp === "object") for (const k of Object.keys(f.xp) as SkillId[]) if (d.xp[k] != null) f.xp[k] = Math.max(0, Number(d.xp[k]) || 0);
   if (Array.isArray(d.inv)) for (let i = 0; i < INVENTORY_SIZE; i++) f.inv[i] = isItem(d.inv[i]) ? d.inv[i] : null;
   f.bank = counts(d.bank, isItem);
