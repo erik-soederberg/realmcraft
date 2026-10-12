@@ -15,6 +15,7 @@
 
   <div class="hud" id="topleft">
     <div id="brand">Ekdal <small id="version"></small></div>
+    <div id="pname"></div>
     <div id="region"></div>
     <div id="hover"></div>
   </div>
@@ -46,6 +47,21 @@
     <div class="dname" id="dname"></div>
     <p class="dline" id="dline"></p>
     <div class="dopts" id="dopts"></div>
+  </div>
+
+  <div id="creator" hidden>
+    <div class="cpanel">
+      <h1>Skapa din karaktär</h1>
+      <p class="clead">Välj ett namn och hur du vill se ut.</p>
+      <label class="clabel" for="cname">Namn</label>
+      <input id="cname" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Ditt namn">
+      <p id="cnameMsg" class="cmsg" aria-live="polite"></p>
+      <div id="copts"></div>
+      <div class="crow">
+        <button id="crandom" class="btn">Slumpa utseende</button>
+        <button id="cstart" class="btn primary" disabled>Börja äventyret</button>
+      </div>
+    </div>
   </div>
 
   <div class="hud" id="panel">

@@ -2,12 +2,10 @@ import "./ui/style.css";
 import { Game } from "./game/game";
 import { $ } from "./ui/hud";
 
-const VERSION = "0.5";
+const VERSION = "0.6";
 
 const game = new Game($("view"));
 $("version").textContent = `Prototyp ${VERSION}`;
-game.hud.message("Välkommen till Ekdal.", "sys");
-game.hud.message("Leta efter gula utropstecken. Där finns det folk som behöver hjälp.");
 $("loading").hidden = true;
 
 new ResizeObserver(() => game.resize()).observe($("view"));

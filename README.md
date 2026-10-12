@@ -38,6 +38,10 @@ src/
 - **En ny NPC med uppdrag:** lägg till uppdraget i `quests.ts`, NPC:n med dialognoder i `npcs.ts` och placera den i ett områdes `npcs`. Dialogen väljer den första nod vars villkor stämmer, och åtgärder som `startQuest`, `take` och `completeQuest` driver uppdraget framåt.
 - **Ett nytt föremål, monster eller recept:** en rad i respektive datafil.
 
+## Spelarnamn
+
+Namn kontrolleras av `validateName` i `src/game/names.ts` (3–12 tecken, börjar med bokstav, reserverade namn och NPC-namn är spärrade). Själva upptagningen går via gränssnittet `NameRegistry`. Just nu används `LocalNameRegistry`, som bara ser namn på samma enhet. När servern finns byts den mot en implementation som frågar servern, så att namnen blir unika för alla spelare.
+
 ## Nästa steg
 
 - Fler områden och snabbresor mellan dem.

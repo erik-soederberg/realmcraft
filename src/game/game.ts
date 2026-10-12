@@ -3,6 +3,9 @@ import { events } from "../core/events";
 import { GOALS } from "../data/goals";
 import { ITEMS } from "../data/items";
 import { REGIONS } from "../data/regions";
+import { DEFAULT_APPEARANCE, lookFor, type Appearance } from "../data/appearance";
+import { Creator } from "../ui/creator";
+import { LocalNameRegistry, type NameRegistry } from "./names";
 import { FISH_TABLE } from "../data/resources";
 import { RECIPES, STATION_EMPTY, STATION_START, type Recipe } from "../data/recipes";
 import { SKILLS, levelForXp } from "../data/skills";
@@ -86,9 +89,10 @@ export class Game {
     [this.tx, this.tz] = this.s.pos;
     this.fx = this.tx + 0.5; this.fz = this.tz + 0.5;
 
-    this.body = humanoid({ skin: "#c99a78", shirt: "#6d7073", trousers: "#3a3029", hair: "#2e2218", chain: true, cape: "#4a1612" });
+    this.body = humanoid(lookFor(this.s.profile?.appearance ?? DEFAULT_APPEARANCE));
     this.held = heldItems(this.body.hand);
     scene.add(this.body.group);
+    this.creator = new Creator(this.names, a => this.setAppearance(a), (name, a) => this.finishCreation(name, a));
     this.bar = new HpBar(scene);
     this.marker = clickMarker(); scene.add(this.marker);
 
@@ -111,6 +115,51 @@ export class Game {
     this.panels.render();
     this.hud.hp(this.s.hp, this.maxHp());
     this.hud.region(this.world.regionAt(this.tx, this.tz)?.def.name ?? "");
+    if (this.s.profile) this.welcome(false);
+    else this.startCreation();
+  }
+
+  /* ---------- character ---------- */
+  readonly names: NameRegistry = new LocalNameRegistry();
+  private creator: Creator;
+  creating = false;
+
+  private startCreation(): void {
+    this.creating = true;
+    this.path = []; this.act = null; this.pending = null;
+    this.dialogue.close();
+    $("hint").hidden = true;
+    $("pname").textContent = "";
+    this.creator.open(DEFAULT_APPEARANCE);
+  }
+
+  /** Rebuilds the player model with a new look, keeping position and facing. */
+  setAppearance(a: Appearance): void {
+    const old = this.body.group;
+    this.body = humanoid(lookFor(a));
+    this.body.group.position.copy(old.position);
+    this.body.group.rotation.copy(old.rotation);
+    this.held = heldItems(this.body.hand);
+    old.parent?.add(this.body.group);
+    old.removeFromParent();
+    old.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (m.material as THREE.Material).dispose(); } });
+  }
+
+  private finishCreation(name: string, a: Appearance): void {
+    this.s.profile = { name, appearance: { ...a } };
+    this.creating = false;
+    this.rig.dist = 13; this.rig.pitch = 0.82;
+    this.face = this.body.group.rotation.y;
+    $("hint").hidden = !this.s.hint;
+    this.welcome(true);
+    this.afterChange();
+  }
+
+  private welcome(first: boolean): void {
+    const name = this.s.profile?.name ?? "";
+    $("pname").textContent = name;
+    this.hud.message(first ? `Välkommen till Ekdal, ${name}.` : `Välkommen tillbaka, ${name}.`, "sys");
+    this.hud.message("Leta efter gula utropstecken. Där finns det folk som behöver hjälp.");
   }
 
   *everything(): Generator<Interactable> { yield* this.resources; yield* this.stations; yield* this.mobs; yield* this.npcs; }
@@ -199,6 +248,7 @@ export class Game {
   save(): void { this.s.pos = [this.tx, this.tz]; writeSave(this.s); }
 
   reset(): void {
+    if (this.s.profile) void this.names.release(this.s.profile.name);
     clearSave();
     const hint = this.s.hint;
     this.s = freshState(this.spawn);
@@ -207,10 +257,10 @@ export class Game {
     this.teleport(this.spawn);
     for (const m of this.mobs) m.target = false;
     this.dialogue.close();
-    this.hud.message("Ny början. Lycka till!", "sys");
     this.hud.hp(this.s.hp, this.maxHp());
     this.refreshMarkers();
-    this.afterChange();
+    this.panels.render();
+    this.startCreation();
   }
 
   private teleport([x, z]: [number, number]): void {
@@ -439,6 +489,7 @@ export class Game {
     const el = this.gfx.renderer.domElement;
     bindPointer(el, {
       click: (x, y) => {
+        if (this.creating) return;
         const h = this.pick(x, y);
         if (!h) return;
         if (h.target) {
@@ -464,7 +515,7 @@ export class Game {
     const syncRun = () => { run.setAttribute("aria-pressed", String(this.s.run)); run.textContent = this.s.run ? "Spring" : "Gå"; };
     syncRun();
     run.addEventListener("click", () => { this.s.run = !this.s.run; syncRun(); this.save(); });
-    $("hint").hidden = !this.s.hint;
+    $("hint").hidden = !this.s.hint || !this.s.profile;
     $("hintx").addEventListener("click", () => { this.s.hint = false; $("hint").hidden = true; this.save(); });
   }
 
@@ -517,6 +568,15 @@ export class Game {
     this.animateWorld(dt);
 
     const follow = new THREE.Vector3(this.fx, this.world.heightAt(this.fx, this.fz) + 0.8, this.fz);
+    if (this.creating) {
+      // Close-up of the hero, shifted so the creator panel does not cover them.
+      const wide = window.innerWidth > 720;
+      this.rig.dist = wide ? 3.4 : 5.6; this.rig.pitch = wide ? 0.2 : 0.16;
+      const side = wide ? -0.9 : 0;
+      follow.y = this.world.heightAt(this.fx, this.fz) + (wide ? 0.85 : -0.55);
+      follow.x += Math.cos(this.rig.yaw) * side; follow.z -= Math.sin(this.rig.yaw) * side;
+      this.body.group.rotation.y += dt * 0.5;
+    }
     this.rig.update(dt, follow);
     this.gfx.follow(this.rig.target);
     if (moving || this.act) this.hoverDirty = true;
@@ -537,8 +597,10 @@ export class Game {
   private animatePlayer(dt: number, moving: boolean): void {
     const b = this.body, y = this.world.heightAt(this.fx, this.fz);
     b.group.position.set(this.fx, y, this.fz);
-    let dr = this.face - b.group.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
-    b.group.rotation.y += dr * Math.min(1, dt * 12);
+    if (!this.creating) {
+      let dr = this.face - b.group.rotation.y; dr = Math.atan2(Math.sin(dr), Math.cos(dr));
+      b.group.rotation.y += dr * Math.min(1, dt * 12);
+    }
     if (moving) this.walkPhase += dt * (this.s.run ? 13 : 8); else this.walkPhase *= 0.85;
     const sw = Math.sin(this.walkPhase) * (moving ? 0.7 : 0);
     b.legL.rotation.x = sw; b.legR.rotation.x = -sw; b.armL.rotation.x = -sw * 0.8;
