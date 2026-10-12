@@ -32,14 +32,14 @@ export class Hud {
     setTimeout(() => d.remove(), 1700);
   }
 
-  /** Floating combat text: "-3" in red for a hit, "Miss" for a blocked swing, "+3" in green for healing. */
-  splat(world: THREE.Vector3, amount: number, camera: THREE.Camera, canvas: HTMLCanvasElement, kind: "hit" | "heal" = "hit"): void {
+  /** Floating combat text: "-3" in red for a hit, "Miss" for a miss, "Blockat" for a shield block, "+3" in green for healing. */
+  splat(world: THREE.Vector3, amount: number, camera: THREE.Camera, canvas: HTMLCanvasElement, kind: "hit" | "heal" | "block" = "hit"): void {
     const v = world.clone(); v.y += 1.25; v.project(camera);
     const r = canvas.getBoundingClientRect();
     const d = document.createElement("div");
-    const cls = kind === "heal" ? "heal" : amount > 0 ? "hit" : "miss";
+    const cls = kind !== "hit" ? kind : amount > 0 ? "hit" : "miss";
     d.className = "splat " + cls;
-    d.textContent = cls === "heal" ? `+${amount}` : cls === "hit" ? `-${amount}` : "Miss";
+    d.textContent = cls === "heal" ? `+${amount}` : cls === "hit" ? `-${amount}` : cls === "block" ? "Blockat" : "Miss";
     d.style.left = `${((v.x + 1) / 2) * r.width + (Math.random() - 0.5) * 18}px`;
     d.style.top = `${((1 - v.y) / 2) * r.height}px`;
     $("app").appendChild(d);

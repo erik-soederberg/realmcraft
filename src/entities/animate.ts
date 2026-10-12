@@ -16,6 +16,8 @@ export interface PoseState {
   strike: number;
   /** Flinch strength from 0 to 1 after taking a hit. */
   hurt: number;
+  /** Shield block from 1 (the blow lands on the shield) fading to 0. */
+  block?: number;
   /** Per-character offset so a crowd does not move in sync. */
   seed: number;
   /** How the fight stance and attack look; one-handed when left out. */
@@ -144,6 +146,14 @@ export function poseHuman(b: Humanoid, s: PoseState): void {
     leanX = 0.22 + keys(k, [[0, 0], [0.62, 0.06], [1, 0]]);
     headX = 0.3;
     legL = -0.12; legR = 0.12; kneeL = 0.1; kneeR = 0.1;
+  }
+
+  // Block: thrust the shield out and up to meet the blow, bracing back on the rear leg.
+  const bl = s.block ? Math.sin(Math.min(1, s.block) * Math.PI * 0.5) : 0;
+  if (bl > 0) {
+    armLx += (-1.25 - armLx) * bl; armLz += (0.55 - armLz) * bl; elbowL += (-1.0 - elbowL) * bl;
+    twistY += 0.25 * bl; leanX -= 0.12 * bl; headX += 0.12 * bl;
+    if (!s.moving) { kneeR += 0.2 * bl; rootY -= 0.03 * bl; }
   }
 
   // Flinch: lean back and turn the head away.

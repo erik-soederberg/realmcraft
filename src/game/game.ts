@@ -61,7 +61,7 @@ export class Game {
   path: [number, number][] = [];
   pending: Interactable | null = null;
   act: Action | null = null;
-  private face = 0; private walkPhase = 0; private swing = 0; private strike = 9; private hurtAnim = 0;
+  private face = 0; private walkPhase = 0; private swing = 0; private strike = 9; private hurtAnim = 0; private blockAnim = 0;
   private atkCd = 0; private tickWait = 0; private regen = 0; private hurtBar = 0;
   private body: Humanoid;
   private held: ReturnType<typeof heldItems>;
@@ -508,11 +508,10 @@ export class Game {
     m.dying = 1; m.bar.group.visible = false; m.hit.position.y = -50;
     if (this.act?.kind === "fight" && this.act.mob === m) this.act = null;
     this.s.kills[m.id] = (this.s.kills[m.id] ?? 0) + 1;
-    // Experience comes per kill: the weapon's skill in full, a third each to Hälsa and, with a shield worn, Sköld.
+    // Experience comes per kill: the weapon's skill in full and a third to Hälsa. Sköld trains by blocking.
     const xp = m.def.xp;
     this.gainXp(this.weaponStyle(), xp);
     this.gainXp("hp", Math.round(xp / 3));
-    if (this.s.equip.shield) this.gainXp("shield", Math.round(xp / 3));
     const loot: string[] = [];
     for (const [id, chance] of m.def.drops) {
       if (Math.random() >= chance) continue;
@@ -523,6 +522,23 @@ export class Game {
     events.emit("kill", { mob: m.id });
     this.refreshMarkers();
     this.afterChange();
+  }
+
+  /** Chance to catch a blow on the shield: grows with the Sköld level and the shield's defence bonus. */
+  blockChance(): number {
+    const sh = this.s.equip.shield;
+    if (!sh) return 0;
+    return Math.min(0.6, 0.15 + this.level("shield") * 0.006 + (itemDef(sh).equip?.def ?? 0) * 0.006);
+  }
+
+  /** Rolls a shield block against a monster's attack; a block stops all damage and trains Sköld. */
+  private tryBlock(m: Mob): boolean {
+    if (Math.random() >= this.blockChance()) return false;
+    this.blockAnim = 1; this.hurtBar = 5;
+    this.hud.splat(this.body.group.position, 0, this.gfx.camera, this.gfx.renderer.domElement, "block");
+    this.gainXp("shield", 4 + m.def.level * 2);
+    if (!this.act && !this.path.length && !this.pending) { this.act = { kind: "fight", mob: m }; this.atkCd = 1; }
+    return true;
   }
 
   private hurt(dmg: number): void {
@@ -555,6 +571,7 @@ export class Game {
       }
       if (--m.atkCd > 0) return;
       m.atkCd = 4; m.lunge = 0;
+      if (this.tryBlock(m)) return;
       const dmg = Math.random() < this.hitChance(d.att, 0, this.defenceLevel(), this.gearBonus().def) ? 1 + Math.floor(Math.random() * this.maxHit(d.str, 0)) : 0;
       this.hurt(dmg);
       if (!this.act && !this.path.length && !this.pending) { this.act = { kind: "fight", mob: m }; this.atkCd = 1; }
@@ -717,7 +734,7 @@ export class Game {
       b.group.rotation.y += dr * Math.min(1, dt * 12);
     }
     if (moving) this.walkPhase += dt * (this.s.run ? 11 : 7.5);
-    this.strike += dt; this.hurtAnim = Math.max(0, this.hurtAnim - dt * 3);
+    this.strike += dt; this.hurtAnim = Math.max(0, this.hurtAnim - dt * 3); this.blockAnim = Math.max(0, this.blockAnim - dt * 2.5);
     const a = this.act;
     let action: PoseState["action"] = "idle";
     if (a?.kind === "fight") { action = "fight"; this.held.show(this.s.equip.weapon ? "weapon" : null); }
@@ -730,7 +747,7 @@ export class Game {
     if (action === "idle" || action === "fight") this.swing = 0; else this.swing += dt;
     poseHuman(b, {
       t: this.clock, phase: this.walkPhase, moving, running: this.s.run, action, actionT: this.swing,
-      strike: this.strike < 0.5 ? this.strike / 0.5 : -1, hurt: this.hurtAnim, seed: 0, style: this.s.equip.weapon ? this.weaponStyle() : "onehand",
+      strike: this.strike < 0.5 ? this.strike / 0.5 : -1, hurt: this.hurtAnim, block: this.blockAnim, seed: 0, style: this.s.equip.weapon ? this.weaponStyle() : "onehand",
     });
     this.hurtBar = Math.max(0, this.hurtBar - dt);
     this.bar.group.visible = this.hurtBar > 0 || a?.kind === "fight";

@@ -93,7 +93,7 @@ export class Panels {
     const worn = EQUIP_SLOTS.filter(k => s.equip[k]).map(k => `<li><span>${SLOT_NAMES[k]}</span>${ITEMS[s.equip[k]!].name}</li>`).join("");
     $("pane-equip").innerHTML = `<div class="doll">${EQUIP_SLOTS.map(slot).join("")}</div>`
       + `<div class="bonus"><div><span>Attack</span><b>+${g.acc}</b></div><div><span>Styrka</span><b>+${g.str}</b></div><div><span>Försvar</span><b>+${g.def}</b></div></div>`
-      + `<p class="paneHint">Du tränar ${SKILLS[this.game.weaponStyle()].name.toLowerCase()} när du slåss med det här vapnet${s.equip.shield ? ", och sköld när du bär sköld" : ""}.</p>`
+      + `<p class="paneHint">Du tränar ${SKILLS[this.game.weaponStyle()].name.toLowerCase()} när du slåss med det här vapnet.${s.equip.shield ? ` Skölden blockerar ${Math.round(this.game.blockChance() * 100)} % av fiendens slag, och varje block tränar Sköld.` : ""}</p>`
       + (worn ? `<ul class="worn">${worn}</ul>` : `<p class="paneHint">Du har inget på dig. Klicka på en sak i packningen för att ta på den.</p>`);
   }
 

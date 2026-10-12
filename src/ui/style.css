@@ -47,6 +47,7 @@ button:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
 .splat.hit { color: #ff3b2a; }
 .splat.miss { color: #9fb4c8; font-size: 17px; }
 .splat.heal { color: #6fe06a; }
+.splat.block { color: #e8c45a; font-size: 18px; }
 @keyframes splat { 0% { opacity: 0; margin-top: 6px; transform: translate(-50%, -50%) scale(1.35); } 12% { opacity: 1; margin-top: 0; transform: translate(-50%, -50%) scale(1); } 70% { opacity: 1; } 100% { opacity: 0; margin-top: -34px; transform: translate(-50%, -50%) scale(1); } }
 #xpdrops { position: relative; width: 160px; height: 120px; pointer-events: none; }
 .drop { position: absolute; right: 0; top: 0; font-family: var(--font-display); font-weight: 800; font-size: 16px; color: #fff; text-shadow: 0 1px 0 #000, 0 0 6px rgba(0,0,0,.7); animation: rise 1.6s ease-out forwards; white-space: nowrap; }
