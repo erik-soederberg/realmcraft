@@ -79,7 +79,7 @@ export const NPCS: NpcDef[] = [
         when: [{ quest: "wolf_trouble", stage: "hunt" }, { killsSinceStart: { quest: "wolf_trouble", mob: "wolf", count: 3 } }],
         lines: ["Det har varit tyst i skogen sedan i morse. Var det du?"],
         options: [
-          { text: "Tre vargar färre nu.", actions: [{ completeQuest: "wolf_trouble" }], reply: ["Då är vi skyldiga dig en tjänst. Låt mig visa hur man håller garden uppe."] },
+          { text: "Tre vargar färre nu.", actions: [{ completeQuest: "wolf_trouble" }], reply: ["Då är vi skyldiga dig en tjänst. Ta min gamla bronssköld, och låt mig visa hur man håller garden uppe."] },
         ],
       },
       {

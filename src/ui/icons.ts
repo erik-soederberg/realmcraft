@@ -15,6 +15,8 @@ function render(i: IconSpec): string {
       return `<svg viewBox="0 0 40 40"><path d="M10 26 Q6 14 18 10 Q30 7 31 18 Q31 28 20 29 Z" fill="${i.color}" stroke="#3a1a14" stroke-width="1.3"/><rect x="25" y="25" width="10" height="4" rx="2" fill="#efe6d0" stroke="#6a6250" transform="rotate(35 28 27)"/></svg>`;
     case "bones":
       return `<svg viewBox="0 0 40 40"><g fill="#e8e0c8" stroke="#6a6250" stroke-width="1.2"><rect x="9" y="17" width="22" height="6" rx="2" transform="rotate(-30 20 20)"/><circle cx="9" cy="23" r="3.5"/><circle cx="12" cy="28" r="3.5"/><circle cx="28" cy="12" r="3.5"/><circle cx="31" cy="17" r="3.5"/></g></svg>`;
+    case "shield":
+      return `<svg viewBox="0 0 40 40"><path d="M20 5 L33 9 Q33 26 20 35 Q7 26 7 9 Z" fill="${i.color}" stroke="${i.rim}" stroke-width="2.4"/><path d="M20 9 V31 M10 15 H30" stroke="${i.rim}" stroke-width="1.4" opacity=".7"/><circle cx="20" cy="17" r="3.2" fill="${i.rim}"/></svg>`;
     case "sword":
       return `<svg viewBox="0 0 40 40"><path d="M30 6 L34 6 L34 10 L16 28 L12 24 Z" fill="${i.color}" stroke="#2b2118" stroke-width="1.2"/><rect x="8" y="23" width="12" height="4" rx="1" fill="#4a3b2c" transform="rotate(45 14 25)"/><rect x="6" y="28" width="4" height="7" rx="1.5" fill="#6a4a2c" transform="rotate(45 8 31)"/></svg>`;
   }

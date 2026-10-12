@@ -182,11 +182,12 @@ export function stationModel(kind: StationKind): THREE.Group {
   return g;
 }
 
-import { humanoid } from "./human";
+import { humanoid, type Humanoid } from "./human";
 export { humanoid, type Humanoid } from "./human";
 
-/** Tools and weapons the player can hold; only one is visible at a time. */
-export function heldItems(hand: THREE.Group) {
+/** Tools and weapons in the right hand and a shield on the left forearm; one tool shows at a time. */
+export function heldItems(body: Humanoid) {
+  const hand = body.hand;
   const metal = (c: string) => mat(c, { metalness: 0.6, roughness: 0.35 });
   const handle = (len: number) => { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, len, 6), mat("#5a3e22")); h.rotation.x = Math.PI / 2; h.position.z = len / 2 - 0.05; return h; };
   const axe = new THREE.Group(); axe.add(handle(0.5)); { const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.1), metal("#8a6a48")); h.position.set(0, 0.06, 0.42); axe.add(h); }
@@ -194,12 +195,34 @@ export function heldItems(hand: THREE.Group) {
   const net = new THREE.Group(); net.add(handle(0.55)); { const h = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.015, 4, 12), mat("#cfc8b0")); h.rotation.x = Math.PI / 2; h.position.set(0, 0, 0.58); net.add(h); }
   const sword = new THREE.Group();
   const bladeMat = metal("#c08040");
-  { const b = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.6), bladeMat); b.position.z = 0.38; sword.add(b); const gd = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.04), mat("#3a2a1e")); gd.position.z = 0.07; sword.add(gd); }
+  {
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.055, 0.6), bladeMat); blade.position.z = 0.4; sword.add(blade);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.08, 4), bladeMat); tip.rotation.x = Math.PI / 2; tip.position.z = 0.74; tip.scale.set(0.8, 1, 2); sword.add(tip);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.035), mat("#3a2a1e", { metalness: 0.4 })); guard.position.z = 0.09; sword.add(guard);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6), mat("#3a2414")); grip.rotation.x = Math.PI / 2; grip.position.z = 0.02; sword.add(grip);
+  }
   const all = { axe, pick, net, sword };
   for (const o of Object.values(all)) { castShadows(o); o.visible = false; hand.add(o); }
+
+  // Round shield strapped to the outside of the left forearm.
+  const shieldFace = mat("#6a4a2c", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }), shieldRim = mat("#8a8478", { metalness: 0.6, roughness: 0.45 });
+  const shield = new THREE.Group();
+  {
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.025, 20), shieldFace); disc.rotation.z = Math.PI / 2; shield.add(disc);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.013, 6, 24), shieldRim); rim.rotation.y = Math.PI / 2; shield.add(rim);
+    const boss = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), shieldRim); boss.rotation.z = Math.PI / 2; boss.position.x = -0.012; shield.add(boss);
+  }
+  shield.position.set(-0.07, -0.12, 0.02);
+  shield.visible = false;
+  castShadows(shield);
+  body.elbowL.add(shield);
   return {
     show(which: keyof typeof all | null) { for (const [k, o] of Object.entries(all)) o.visible = k === which; },
     setBlade(color: string) { bladeMat.color.set(color); },
+    setShield(look: { color: string; rim: string } | null) {
+      shield.visible = !!look;
+      if (look) { shieldFace.color.set(look.color); shieldRim.color.set(look.rim); }
+    },
   };
 }
 
@@ -263,16 +286,16 @@ function goblin(): THREE.Group {
   const skin = mat("#56603f", { roughness: 0.6 });
   for (const s of [-1, 1]) {
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 5), skin);
-    ear.position.set(s * 0.11, 1.56, -0.01); ear.rotation.z = -s * 1.25;
-    h.group.add(ear);
+    ear.position.set(s * 0.11, 0.02, -0.02); ear.rotation.z = -s * 1.25;
+    h.head.add(ear);
   }
   const club = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.022, 0.5, 7), M.bark);
   club.rotation.x = Math.PI / 2; club.position.z = 0.22;
   h.hand.add(club);
-  h.armR.rotation.x = -0.4;
   h.group.scale.setScalar(0.74);
   castShadows(h.group);
   const g = new THREE.Group(); g.add(h.group);
+  g.userData.human = h;
   return g;
 }
 

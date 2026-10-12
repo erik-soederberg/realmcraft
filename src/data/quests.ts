@@ -34,7 +34,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "hunt", log: "Besegra 3 vargar i skogen nordväst om byn och berätta det för Bo.", ready: [{ killsSinceStart: { quest: "wolf_trouble", mob: "wolf", count: 3 } }] },
     ],
-    rewards: { xp: { melee: 900, hp: 300 } },
+    rewards: { xp: { melee: 900, hp: 300 }, items: ["bronze_shield"] },
   },
 ];
 

@@ -17,13 +17,29 @@ export type IconSpec =
   | { kind: "fish"; color: string; belly: number }
   | { kind: "meat"; color: string }
   | { kind: "bones" }
-  | { kind: "sword"; color: string };
+  | { kind: "sword"; color: string }
+  | { kind: "shield"; color: string; rim: string };
 
 export interface ItemDef {
   name: string;
   icon: IconSpec;
   heal?: number;
-  weapon?: { acc: number; str: number; speed: number };
+  /** Worn or wielded: which slot it goes in and the bonuses it gives. */
+  equip?: EquipStats;
+}
+
+export type EquipSlot = "head" | "weapon" | "body" | "shield" | "legs";
+
+export interface EquipStats {
+  slot: EquipSlot;
+  /** Attack accuracy bonus. */
+  acc?: number;
+  /** Strength bonus (max hit). */
+  str?: number;
+  /** Defence bonus against melee. */
+  def?: number;
+  /** Ticks between attacks; weapons only. */
+  speed?: number;
 }
 
 export type ResourceKind = "tree" | "oak" | "copper" | "tin" | "iron" | "fish";
@@ -52,6 +68,8 @@ export interface StationDef {
 
 export interface MobDef {
   name: string;
+  /** Plural form, used in quest progress ("Vargar 1/3"). */
+  plural: string;
   /** Definite form, used in sentences ("Du besegrade vargen"). */
   the: string;
   level: number;

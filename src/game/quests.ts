@@ -1,8 +1,10 @@
 import { events } from "../core/events";
 import { ITEMS } from "../data/items";
 import { QUEST_BY_ID, QUESTS } from "../data/quests";
+import { MOBS } from "../data/mobs";
+import { NPCS } from "../data/npcs";
 import { levelForXp, SKILLS } from "../data/skills";
-import type { Condition, DialogueAction, DialogueNode, ItemId, NpcDef, SkillId } from "../data/types";
+import type { Condition, DialogueAction, DialogueNode, ItemId, NpcDef, QuestDef, SkillId } from "../data/types";
 import type { GameState } from "./state";
 
 export const NOT_STARTED = "not_started";
@@ -78,6 +80,38 @@ export class QuestEngine {
       else if (st !== DONE) { const step = q.steps.find(x => x.id === st); if (step && this.checkAll(step.ready)) return "?"; }
     }
     return mark;
+  }
+
+  /** Countable parts of a step's hand-in condition, such as "Vargar 1/3". */
+  progress(c: Condition[] = []): { label: string; have: number; need: number }[] {
+    const s = this.s(), out: { label: string; have: number; need: number }[] = [];
+    for (const x of c) {
+      if ("hasItems" in x) for (const [id, n] of Object.entries(x.hasItems)) out.push({ label: ITEMS[id as ItemId].name, have: Math.min(n ?? 0, this.count(id as ItemId)), need: n ?? 0 });
+      else if ("killsSinceStart" in x) {
+        const k = x.killsSinceStart, have = (s.kills[k.mob] ?? 0) - (s.questStart[k.quest]?.[k.mob] ?? 0);
+        out.push({ label: `${MOBS[k.mob].plural} besegrade`, have: Math.min(k.count, have), need: k.count });
+      } else if ("level" in x) out.push({ label: `Nivå i ${SKILLS[x.level.skill].name}`, have: Math.min(x.level.min, levelForXp(s.xp[x.level.skill])), need: x.level.min });
+    }
+    return out;
+  }
+
+  /** Everything the quest journal shows for one quest. */
+  journal(q: QuestDef) {
+    const st = this.stage(q.id), giver = NPCS.find(n => n.id === q.giver);
+    const idx = st === DONE ? q.steps.length : q.steps.findIndex(x => x.id === st);
+    const status: "active" | "done" | "available" = st === DONE ? "done" : st === NOT_STARTED ? "available" : "active";
+    const current = status === "active" ? q.steps[idx] : undefined;
+    const rewards = [
+      ...Object.entries(q.rewards.xp ?? {}).map(([sk, xp]) => `${xp} XP i ${SKILLS[sk as SkillId].name}`),
+      ...(q.rewards.items ?? []).map(it => ITEMS[it].name),
+    ];
+    return {
+      id: q.id, name: q.name, summary: q.summary, status, giver: giver?.name ?? "",
+      done: q.steps.slice(0, Math.max(0, idx)).map(x => x.log),
+      current: current?.log, ready: current ? this.checkAll(current.ready) : false,
+      progress: current ? this.progress(current.ready) : [],
+      rewards,
+    };
   }
 
   log(): { name: string; status: "active" | "done" | "available"; text: string }[] {

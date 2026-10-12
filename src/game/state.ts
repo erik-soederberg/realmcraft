@@ -3,11 +3,15 @@ import { ITEMS } from "../data/items";
 import { MOBS } from "../data/mobs";
 import { QUEST_BY_ID } from "../data/quests";
 import { SKILLS, XP_TABLE, levelForXp } from "../data/skills";
-import type { ItemId, MobId, SkillId } from "../data/types";
+import type { EquipSlot, ItemId, MobId, SkillId } from "../data/types";
 import { validateName } from "./names";
 
 export const INVENTORY_SIZE = 28;
 const SAVE_KEY = "ekdal-save-v2";
+
+/** Every new character starts with these equipped. */
+export const STARTER_GEAR: Partial<Record<EquipSlot, ItemId>> = { weapon: "bronze_sword", shield: "wooden_shield" };
+export const EQUIP_SLOTS: EquipSlot[] = ["head", "weapon", "body", "shield", "legs"];
 
 export interface Profile {
   name: string;
@@ -19,7 +23,8 @@ export interface GameState {
   profile: Profile | null;
   xp: Record<SkillId, number>;
   hp: number;
-  weapon: ItemId | null;
+  /** What the player wears and wields, by slot. */
+  equip: Partial<Record<EquipSlot, ItemId>>;
   inv: (ItemId | null)[];
   bank: Partial<Record<ItemId, number>>;
   gathered: Partial<Record<ItemId, number>>;
@@ -40,7 +45,7 @@ export function freshState(spawn: [number, number]): GameState {
   const xp = Object.fromEntries(Object.keys(SKILLS).map(k => [k, 0])) as Record<SkillId, number>;
   xp.hp = XP_TABLE[10];
   return {
-    profile: null, xp, hp: 10, weapon: null, inv: new Array(INVENTORY_SIZE).fill(null),
+    profile: null, xp, hp: 10, equip: { ...STARTER_GEAR }, inv: new Array(INVENTORY_SIZE).fill(null),
     bank: {}, gathered: {}, made: {}, kills: {}, deposited: 0, goals: {}, quests: {}, questStart: {},
     pos: spawn, run: true, hint: true,
   };
@@ -72,7 +77,14 @@ export function restoreState(data: unknown, spawn: [number, number]): GameState 
   if (d.goals && typeof d.goals === "object") for (const [k, v] of Object.entries(d.goals)) f.goals[k] = !!v;
   if (d.quests && typeof d.quests === "object") for (const [k, v] of Object.entries(d.quests)) if (QUEST_BY_ID[k] && typeof v === "string") f.quests[k] = v;
   if (d.questStart && typeof d.questStart === "object") for (const [k, v] of Object.entries(d.questStart)) if (QUEST_BY_ID[k]) f.questStart[k] = counts(v, isMob);
-  f.weapon = isItem(d.weapon) && ITEMS[d.weapon as ItemId] && "weapon" in ITEMS[d.weapon as ItemId] ? d.weapon : null;
+  const fits = (id: unknown, slot: EquipSlot): id is ItemId => isItem(id) && (ITEMS[id] as { equip?: { slot: EquipSlot } }).equip?.slot === slot;
+  if (d.equip && typeof d.equip === "object") {
+    f.equip = {};
+    for (const slot of EQUIP_SLOTS) if (fits(d.equip[slot], slot)) f.equip[slot] = d.equip[slot];
+  } else if (fits(d.weapon, "weapon")) {
+    // Saves from before equipment slots: keep the old weapon and hand out the starter shield.
+    f.equip.weapon = d.weapon;
+  }
   f.hp = Math.max(1, Math.min(levelForXp(f.xp.hp), d.hp == null ? 99 : Number(d.hp) | 0));
   if (Array.isArray(d.pos) && d.pos.length === 2) f.pos = [Number(d.pos[0]) | 0, Number(d.pos[1]) | 0];
   f.run = d.run !== false;

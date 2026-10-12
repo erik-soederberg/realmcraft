@@ -1,4 +1,4 @@
-import type { ItemDef } from "./types";
+import type { ItemDef, ItemId } from "./types";
 
 export const ITEMS = {
   logs: { name: "Stockar", icon: { kind: "logs", bark: "#8a5a32", end: "#d8b47c" } },
@@ -16,6 +16,11 @@ export const ITEMS = {
   bones: { name: "Ben", icon: { kind: "bones" } },
   raw_meat: { name: "Rått kött", icon: { kind: "meat", color: "#c8505a" } },
   meat: { name: "Stekt kött", heal: 6, icon: { kind: "meat", color: "#8a4a24" } },
-  bronze_sword: { name: "Bronssvärd", weapon: { acc: 6, str: 5, speed: 3 }, icon: { kind: "sword", color: "#c8873e" } },
-  iron_sword: { name: "Järnsvärd", weapon: { acc: 14, str: 12, speed: 3 }, icon: { kind: "sword", color: "#9aa0a6" } },
+  bronze_sword: { name: "Bronssvärd", equip: { slot: "weapon", acc: 6, str: 5, speed: 3 }, icon: { kind: "sword", color: "#c8873e" } },
+  iron_sword: { name: "Järnsvärd", equip: { slot: "weapon", acc: 14, str: 12, speed: 3 }, icon: { kind: "sword", color: "#9aa0a6" } },
+  wooden_shield: { name: "Träsköld", equip: { slot: "shield", def: 6 }, icon: { kind: "shield", color: "#6a4a2c", rim: "#8a8478" } },
+  bronze_shield: { name: "Bronssköld", equip: { slot: "shield", def: 12 }, icon: { kind: "shield", color: "#b07a3a", rim: "#5a3a1c" } },
 } satisfies Record<string, ItemDef>;
+
+/** The item's definition with every optional field visible. */
+export const itemDef = (id: ItemId): ItemDef => ITEMS[id];

@@ -68,12 +68,15 @@ export class Mob {
   hp: number;
   fx: number; fz: number;
   dead = false; respawnAt = 0; atkCd = 2; target = false; face: number; showBar = 0; flash = 0;
+  /** Seconds since this mob last attacked, and seconds left of its death fall. */
+  lunge = 9; dying = 0; walkPhase = 0;
   constructor(readonly id: MobId, public x: number, public z: number, readonly home: [number, number], scene: THREE.Scene, seed: number) {
     this.def = MOBS[id];
     this.hp = this.def.hp;
     this.fx = x + 0.5; this.fz = z + 0.5;
     this.face = seed * 6.28;
     this.group = mobModel(this.def.look);
+    this.group.rotation.order = "YXZ";
     this.hit = hitbox(this);
     this.bar = new HpBar(scene);
     scene.add(this.group, this.hit);
@@ -90,7 +93,7 @@ export class Npc {
     const y = world.tileY(x, z);
     this.model.group.position.set(x + 0.5, y, z + 0.5);
     this.model.group.rotation.y = facing;
-    this.marker.sprite.position.set(x + 0.5, y + 1.95, z + 0.5);
+    this.marker.sprite.position.set(x + 0.5, y + 2.2, z + 0.5);
     this.hit = hitbox(this);
     this.hit.position.set(x + 0.5, y + 0.8, z + 0.5);
     scene.add(this.model.group, this.marker.sprite, this.hit);
