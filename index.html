@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ekdal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&family=Alegreya+Sans:wght@400;500;700&display=swap">
+</head>
+<body>
+<div id="app">
+  <div id="view"></div>
+  <div id="grade"></div>
+  <div id="loading">Laddar Ekdal…</div>
+
+  <div class="hud" id="topleft">
+    <div id="brand">Ekdal <small id="version"></small></div>
+    <div id="region"></div>
+    <div id="hover"></div>
+  </div>
+
+  <div class="hud" id="camctl" aria-label="Kamera">
+    <button id="zin" title="Zooma in" aria-label="Zooma in">+</button>
+    <button id="zout" title="Zooma ut" aria-label="Zooma ut">−</button>
+  </div>
+
+  <div class="hud" id="hint" hidden>
+    <div><b>Välkommen till Ekdal.</b> Klicka på marken för att gå och på träd, stenar och fiskeplatser för att samla. Prata med folk som har ett gult utropstecken ovanför sig för att få uppdrag. Dra för att vrida kameran och scrolla för att zooma.</div>
+    <button id="hintx" aria-label="Stäng tipset">×</button>
+  </div>
+
+  <div class="hud" id="topright">
+    <div id="mapwrap"><canvas id="minimap" width="312" height="312" aria-label="Minikarta, klicka för att gå"></canvas></div>
+    <div id="hudrow">
+      <div class="orb hp" id="hporb">Hälsa 10/10</div>
+      <button class="orb" id="run" aria-pressed="true">Spring</button>
+    </div>
+    <div id="xpdrops"></div>
+  </div>
+
+  <div class="hud" id="toast"><div class="big" id="toastBig"></div><div class="small" id="toastSmall"></div></div>
+
+  <div class="hud" id="chat" aria-live="polite"></div>
+
+  <div class="hud" id="dialogue" hidden>
+    <div class="dname" id="dname"></div>
+    <p class="dline" id="dline"></p>
+    <div class="dopts" id="dopts"></div>
+  </div>
+
+  <div class="hud" id="panel">
+    <div id="tabs" role="tablist">
+      <button role="tab" data-tab="inv" aria-selected="true">Packning</button>
+      <button role="tab" data-tab="skills" aria-selected="false">Nivåer</button>
+      <button role="tab" data-tab="quests" aria-selected="false">Uppdrag</button>
+      <button role="tab" data-tab="bank" aria-selected="false">Bank</button>
+    </div>
+    <div class="tabpane" id="pane-inv"><div class="inv" id="inv"></div><p class="paneHint">28 platser. Klicka på mat för att äta och på vapen för att ta på dem. Andra föremål slängs när du klickar.</p></div>
+    <div class="tabpane" id="pane-skills" hidden></div>
+    <div class="tabpane" id="pane-quests" hidden></div>
+    <div class="tabpane" id="pane-bank" hidden></div>
+  </div>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
