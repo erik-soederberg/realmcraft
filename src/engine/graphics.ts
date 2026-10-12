@@ -15,27 +15,27 @@ export class Graphics {
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    r.toneMappingExposure = 0.92;
     host.appendChild(r.domElement);
     this.renderer = r;
 
-    const top = new THREE.Color("#3e4d5a"), horizon = new THREE.Color("#b7ab95"), low = new THREE.Color("#2e2a24");
+    const top = new THREE.Color("#3f4a54"), horizon = new THREE.Color("#9c9a90"), low = new THREE.Color("#25231f");
     this.sky = makeSky(top, horizon, low);
     this.scene.add(this.sky);
-    this.scene.fog = new THREE.Fog(horizon, 20, 52);
+    this.scene.fog = new THREE.Fog(horizon, 18, 50);
 
     // Image-based ambient light from the sky, so metals and water have something to reflect.
     const envScene = new THREE.Scene();
     envScene.add(this.sky.clone());
-    const disc = new THREE.Mesh(new THREE.SphereGeometry(10, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffd9a8").multiplyScalar(6) }));
+    const disc = new THREE.Mesh(new THREE.SphereGeometry(10, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color("#ffe4c4").multiplyScalar(5) }));
     disc.position.set(80, 60, 30);
     envScene.add(disc);
     const pm = new THREE.PMREMGenerator(r);
     this.scene.environment = pm.fromScene(envScene, 0.03).texture;
     pm.dispose();
 
-    this.scene.add(new THREE.HemisphereLight("#9fb2c4", "#3b3222", 0.8));
-    const sun = new THREE.DirectionalLight("#ffcf9a", 8.2);
+    this.scene.add(new THREE.HemisphereLight("#8e9ca8", "#2a251e", 0.9));
+    const sun = new THREE.DirectionalLight("#ffe2c2", 6.6);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 70 });

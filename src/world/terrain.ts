@@ -4,12 +4,12 @@ import { detailTex, jitter, mat } from "../engine/graphics";
 import { Tile, WATER_LEVEL, type Region, type World } from "./world";
 
 const TILE_COLORS: Record<number, THREE.Color> = {
-  [Tile.Grass]: new THREE.Color("#3f4f27"),
-  [Tile.Sand]: new THREE.Color("#8f8364"),
-  [Tile.Path]: new THREE.Color("#6a5a45"),
-  [Tile.Dirt]: new THREE.Color("#5c5146"),
+  [Tile.Grass]: new THREE.Color("#384422"),
+  [Tile.Sand]: new THREE.Color("#7a705a"),
+  [Tile.Path]: new THREE.Color("#544839"),
+  [Tile.Dirt]: new THREE.Color("#4c443b"),
   [Tile.Water]: new THREE.Color("#3a3a2e"),
-  [Tile.Void]: new THREE.Color("#3f4f27"),
+  [Tile.Void]: new THREE.Color("#384422"),
 };
 
 /** Everything drawn for one region's ground: terrain, grass, pebbles and water. */
@@ -62,7 +62,7 @@ function blendColor(world: World, fx: number, fz: number, out: THREE.Color): THR
 function buildGround(world: World, region: Region): THREE.Mesh {
   const R = 3, VW = region.w * R + 1, VH = region.h * R + 1;
   const pos: number[] = [], col: number[] = [], uv: number[] = [], ind: number[] = [];
-  const dry = new THREE.Color("#5c5a34"), moss = new THREE.Color("#2a3819"), grass = TILE_COLORS[Tile.Grass];
+  const dry = new THREE.Color("#4e4c30"), moss = new THREE.Color("#253017"), grass = TILE_COLORS[Tile.Grass];
   const c = new THREE.Color();
   for (let j = 0; j < VH; j++) for (let i = 0; i < VW; i++) {
     const fx = region.ox + i / R, fz = region.oz + j / R, y = world.heightAt(fx, fz);
@@ -102,7 +102,7 @@ function buildGrass(world: World, region: Region): THREE.InstancedMesh {
   }
   const im = new THREE.InstancedMesh(blade, new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 1, envMapIntensity: 0.4 }), spots.length);
   const q = new THREE.Object3D(), gc = new THREE.Color();
-  const a = new THREE.Color("#3d4c22"), b = new THREE.Color("#6a6a34"), c = new THREE.Color("#25321a");
+  const a = new THREE.Color("#34401e"), b = new THREE.Color("#55532e"), c = new THREE.Color("#202a16");
   spots.forEach(([fx, fz], i) => {
     const r1 = hash(i, 3), r2 = hash(i, 9);
     q.position.set(fx, world.heightAt(fx, fz) - 0.02, fz);
@@ -124,7 +124,7 @@ function buildPebbles(world: World, region: Region): THREE.InstancedMesh {
     if ((t === Tile.Dirt && r < 0.9) || (t === Tile.Path && r < 0.25) || (t === Tile.Sand && r < 0.2))
       for (let k = 0; k < 3; k++) spots.push([x + hash(x * 3 + k, z), z + hash(x, z * 3 + k)]);
   }
-  const im = new THREE.InstancedMesh(peb, mat("#6d675e", { flatShading: true }), spots.length);
+  const im = new THREE.InstancedMesh(peb, mat("#4f4b45", { flatShading: true, map: detailTex }), spots.length);
   const q = new THREE.Object3D();
   spots.forEach(([fx, fz], i) => {
     q.position.set(fx, world.heightAt(fx, fz), fz);

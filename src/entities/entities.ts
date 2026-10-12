@@ -90,7 +90,7 @@ export class Npc {
     const y = world.tileY(x, z);
     this.model.group.position.set(x + 0.5, y, z + 0.5);
     this.model.group.rotation.y = facing;
-    this.marker.sprite.position.set(x + 0.5, y + 1.75, z + 0.5);
+    this.marker.sprite.position.set(x + 0.5, y + 1.95, z + 0.5);
     this.hit = hitbox(this);
     this.hit.position.set(x + 0.5, y + 0.8, z + 0.5);
     scene.add(this.model.group, this.marker.sprite, this.hit);
