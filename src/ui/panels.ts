@@ -15,7 +15,11 @@ export class Panels {
   constructor(private game: Game) {
     $("tabs").addEventListener("click", e => {
       const b = (e.target as HTMLElement).closest("button");
-      if (b?.dataset.tab) this.show(b.dataset.tab as Tab);
+      if (!b?.dataset.tab) return;
+      // Clicking the open tab folds the panel away, so the game view stays clear.
+      const panel = $("panel");
+      if (b.getAttribute("aria-selected") === "true" && !panel.classList.contains("collapsed")) panel.classList.add("collapsed");
+      else this.show(b.dataset.tab as Tab);
     });
     $("inv").addEventListener("click", e => {
       const b = (e.target as HTMLElement).closest<HTMLElement>(".slot.full");
@@ -35,6 +39,7 @@ export class Panels {
   }
 
   show(tab: Tab): void {
+    $("panel").classList.remove("collapsed");
     document.querySelectorAll<HTMLElement>("#tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
     for (const p of ["inv", "skills", "quests", "bank"]) $("pane-" + p).hidden = p !== tab;
   }
