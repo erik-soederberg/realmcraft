@@ -604,6 +604,9 @@ export class Game {
     if (moving) this.walkPhase += dt * (this.s.run ? 13 : 8); else this.walkPhase *= 0.85;
     const sw = Math.sin(this.walkPhase) * (moving ? 0.7 : 0);
     b.legL.rotation.x = sw; b.legR.rotation.x = -sw; b.armL.rotation.x = -sw * 0.8;
+    const bend = moving ? 0.12 : 0;
+    b.kneeL.rotation.x = Math.max(0, sw) * 1.3 + bend; b.kneeR.rotation.x = Math.max(0, -sw) * 1.3 + bend;
+    b.elbowL.rotation.x = -0.18 - Math.max(0, -sw) * 0.5;
     if (b.cape) b.cape.rotation.x = 0.14 + (moving ? 0.35 + Math.sin(this.walkPhase * 2) * 0.06 : Math.sin(this.clock * 1.5) * 0.03);
     this.strike = Math.max(0, this.strike - dt);
     const a = this.act;
@@ -628,7 +631,7 @@ export class Game {
     }
     this.hurtBar = Math.max(0, this.hurtBar - dt);
     this.bar.group.visible = this.hurtBar > 0 || a?.kind === "fight";
-    if (this.bar.group.visible) this.bar.set(this.s.hp / this.maxHp(), new THREE.Vector3(this.fx, y + 1.6, this.fz), this.gfx.camera);
+    if (this.bar.group.visible) this.bar.set(this.s.hp / this.maxHp(), new THREE.Vector3(this.fx, y + 1.85, this.fz), this.gfx.camera);
   }
 
   private animateWorld(dt: number): void {
@@ -636,7 +639,7 @@ export class Game {
     for (const n of this.resources) n.model.update?.(this.clock);
     GLOW.emissiveIntensity = 2.0 + Math.sin(this.clock * 9) * 0.25 + Math.sin(this.clock * 23) * 0.15;
     for (const n of this.npcs) {
-      n.marker.sprite.position.y = this.world.tileY(n.x, n.z) + 1.75 + Math.sin(this.clock * 2.5) * 0.05;
+      n.marker.sprite.position.y = this.world.tileY(n.x, n.z) + 1.95 + Math.sin(this.clock * 2.5) * 0.05;
       n.model.armL.rotation.x = Math.sin(this.clock * 0.9 + n.x) * 0.05;
     }
     const cam = this.gfx.camera;

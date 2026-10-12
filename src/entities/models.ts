@@ -1,37 +1,48 @@
 import * as THREE from "three";
 import { castShadows, detailTex, jitter, mat } from "../engine/graphics";
-import type { HumanLook, MobDef, ResourceKind, StationKind } from "../data/types";
+import type { MobDef, ResourceKind, StationKind } from "../data/types";
 
 /** Procedural models. Swapping one for a loaded glTF later only touches this file. */
 
 const M = {
   trunk: mat("#3d2f24", { map: detailTex }),
   bark: mat("#4a3a2c", { map: detailTex }),
-  spruce: mat("#1f3322", { flatShading: true }),
-  spruce2: mat("#26392a", { flatShading: true }),
-  oak: mat("#2c3a1c", { flatShading: true }),
-  oak2: mat("#24301a", { flatShading: true }),
-  rock: mat("#625e57", { flatShading: true, map: detailTex }),
-  rockDark: mat("#3f3c38", { flatShading: true, map: detailTex }),
+  spruce: mat("#1b2a1e", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5, side: THREE.DoubleSide }),
+  spruce2: mat("#223324", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5, side: THREE.DoubleSide }),
+  oak: mat("#2a3519", { map: detailTex, bumpMap: detailTex, bumpScale: 3 }),
+  oak2: mat("#212b16", { map: detailTex, bumpMap: detailTex, bumpScale: 3 }),
+  rock: mat("#5a5751", { flatShading: true, map: detailTex, bumpMap: detailTex, bumpScale: 2 }),
+  rockDark: mat("#3a3835", { flatShading: true, map: detailTex, bumpMap: detailTex, bumpScale: 2 }),
   copper: mat("#d07a3c", { metalness: 0.5, roughness: 0.5 }),
   tin: mat("#b9c2c6", { metalness: 0.6, roughness: 0.4 }),
   iron: mat("#7a3f2a", { metalness: 0.4, roughness: 0.6 }),
-  stone: mat("#6a645b", { map: detailTex }),
-  stoneDark: mat("#5d574f", { map: detailTex }),
+  stone: mat("#5d5850", { map: detailTex, bumpMap: detailTex, bumpScale: 2, flatShading: true }),
+  stoneDark: mat("#46423c", { map: detailTex, bumpMap: detailTex, bumpScale: 2, flatShading: true }),
   soot: mat("#2a2622"),
-  ironTop: mat("#3a3c40", { metalness: 0.6, roughness: 0.45 }),
-  chest: mat("#5a3a20", { map: detailTex }),
-  gold: mat("#d6a644", { metalness: 0.8, roughness: 0.35 }),
+  ironTop: mat("#2e3033", { metalness: 0.7, roughness: 0.5, map: detailTex }),
+  chest: mat("#3e2a1a", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }),
+  gold: mat("#4a4a4c", { metalness: 0.85, roughness: 0.5 }),
   glow: new THREE.MeshStandardMaterial({ color: "#ff8a2a", emissive: "#ff6a1a", emissiveIntensity: 2.2, roughness: 1 }),
   foam: new THREE.MeshBasicMaterial({ color: "#d8e4e0", transparent: true, opacity: 0.6 }),
 };
 export const GLOW = M.glow;
 export const ROCK_MATS = { normal: M.rock, empty: M.rockDark };
 
+/** Bends a cone's lower rim down and outwards so spruce tiers hang like branches. */
+function droop(geo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i), t = 0.5 - y;
+    p.setY(i, y - t * t * 0.35);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 const G = {
   trunk: new THREE.CylinderGeometry(0.11, 0.17, 1, 7),
-  spruce: [0, 1, 2].map(k => jitter(new THREE.ConeGeometry(1, 1, 10, 2), 0.18, 10 + k)),
-  clump: [0, 1, 2].map(k => jitter(new THREE.IcosahedronGeometry(0.5, 1), 0.22, 20 + k)),
+  spruce: [0, 1, 2].map(k => droop(jitter(new THREE.ConeGeometry(1, 1, 12, 3, true), 0.22, 10 + k))),
+  clump: [0, 1, 2].map(k => jitter(new THREE.IcosahedronGeometry(0.5, 2), 0.18, 20 + k)),
   rock: jitter(new THREE.IcosahedronGeometry(0.44, 1), 0.16, 1),
   ore: jitter(new THREE.IcosahedronGeometry(0.09, 0), 0.05, 2),
   ring: new THREE.TorusGeometry(0.32, 0.03, 4, 18),
@@ -55,8 +66,8 @@ export function resourceModel(kind: ResourceKind, seed: number): ResourceModel {
       trunk = new THREE.Mesh(G.trunk, M.trunk);
       trunk.scale.set(0.9, H * 0.55, 0.9);
       trunk.position.y = H * 0.275;
-      for (let i = 0; i < 5; i++) {
-        const t = i / 4, rad = 0.95 - t * 0.7, h = 0.95 - t * 0.25;
+      for (let i = 0; i < 7; i++) {
+        const t = i / 6, rad = 1.0 - t * 0.78, h = 0.8 - t * 0.2;
         const c = new THREE.Mesh(G.spruce[(i + ((seed * 3) | 0)) % 3], i % 2 ? M.spruce2 : M.spruce);
         c.scale.set(rad, h, rad);
         c.position.y = 0.75 + t * (H - 0.9);
@@ -138,14 +149,29 @@ export function stationModel(kind: StationKind): THREE.Group {
     for (const bx of [-0.28, 0.28]) add(new THREE.BoxGeometry(0.06, 0.48, 0.57), M.gold, bx, 0.24, 0);
     add(new THREE.BoxGeometry(0.12, 0.14, 0.04), M.gold, 0, 0.36, 0.29);
   } else if (kind === "furnace") {
-    add(new THREE.BoxGeometry(0.9, 0.8, 0.8), M.stone, 0, 0.4, 0);
-    add(new THREE.CylinderGeometry(0.22, 0.42, 0.4, 6), M.stoneDark, 0, 1.0, 0);
-    add(new THREE.CylinderGeometry(0.12, 0.14, 0.5, 6), M.soot, 0, 1.4, 0);
-    add(new THREE.BoxGeometry(0.4, 0.3, 0.05), M.glow, 0, 0.32, 0.4).userData.noShadow = true;
+    // Dry-stone furnace: rings of rough blocks narrowing to a chimney, open at the front.
+    const block = jitter(new THREE.BoxGeometry(0.26, 0.17, 0.2, 2, 1, 1), 0.04, 31);
+    for (let row = 0; row < 5; row++) {
+      const r = 0.5 - row * 0.075, n = 11 - row, y = 0.09 + row * 0.16;
+      for (let k = 0; k < n; k++) {
+        const ang = (k + (row % 2) * 0.5) / n * Math.PI * 2;
+        if (row < 2 && Math.abs(Math.atan2(Math.sin(ang), Math.cos(ang))) < 0.45) continue;
+        const m = add(block, (k + row) % 3 ? M.stone : M.stoneDark, Math.sin(ang) * r, y, Math.cos(ang) * r);
+        m.rotation.y = ang; m.scale.set(1 - row * 0.05, 1, 1);
+      }
+    }
+    add(new THREE.CylinderGeometry(0.17, 0.26, 0.12, 10), M.stoneDark, 0, 0.86, 0);
+    add(jitter(new THREE.CylinderGeometry(0.12, 0.15, 0.4, 8, 3), 0.025, 7), M.stoneDark, 0, 1.1, 0);
+    add(new THREE.CylinderGeometry(0.4, 0.4, 0.06, 12), M.soot, 0, 0.03, 0);
+    add(new THREE.SphereGeometry(0.22, 10, 8), M.glow, 0, 0.18, 0.05).userData.noShadow = true;
   } else if (kind === "anvil") {
-    add(new THREE.CylinderGeometry(0.22, 0.3, 0.4, 7), M.bark, 0, 0.2, 0);
-    add(new THREE.BoxGeometry(0.7, 0.18, 0.3), M.ironTop, 0, 0.5, 0);
-    add(new THREE.ConeGeometry(0.1, 0.3, 8), M.ironTop, 0.5, 0.52, 0).rotation.z = -Math.PI / 2;
+    add(jitter(new THREE.CylinderGeometry(0.24, 0.3, 0.42, 9, 2), 0.03, 4), M.bark, 0, 0.21, 0);
+    add(new THREE.BoxGeometry(0.3, 0.08, 0.24), M.ironTop, 0, 0.46, 0);
+    add(new THREE.BoxGeometry(0.16, 0.12, 0.14), M.ironTop, 0, 0.55, 0);
+    add(new THREE.BoxGeometry(0.5, 0.11, 0.2), M.ironTop, -0.03, 0.66, 0);
+    const horn = add(new THREE.ConeGeometry(0.09, 0.32, 10), M.ironTop, 0.36, 0.67, 0); horn.rotation.z = -Math.PI / 2; horn.scale.set(1, 1, 0.75);
+    add(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 6), mat("#4a3420"), -0.12, 0.74, 0.14).rotation.z = 1.4;
+    add(new THREE.BoxGeometry(0.06, 0.08, 0.1), M.ironTop, 0.02, 0.76, 0.14);
   } else {
     add(new THREE.BoxGeometry(0.95, 0.6, 0.7), M.stone, 0, 0.3, 0);
     add(new THREE.BoxGeometry(0.98, 0.06, 0.73), M.ironTop, 0, 0.63, 0);
@@ -156,47 +182,8 @@ export function stationModel(kind: StationKind): THREE.Group {
   return g;
 }
 
-/* ---------- humanoids (player and NPCs) ---------- */
-
-export interface Humanoid {
-  group: THREE.Group;
-  legL: THREE.Group; legR: THREE.Group; armL: THREE.Group; armR: THREE.Group;
-  cape?: THREE.Mesh;
-  hand: THREE.Group;
-}
-
-export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): Humanoid {
-  const g = new THREE.Group();
-  const skin = mat(look.skin), shirt = look.chain ? mat(look.shirt, { metalness: 0.75, roughness: 0.42, map: detailTex }) : mat(look.shirt, { map: detailTex });
-  const trousers = mat(look.trousers), hair = mat(look.hair), belt = mat("#2a1d14");
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 0.5, 12), shirt); torso.position.y = 0.82; g.add(torso);
-  const beltM = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.205, 0.06, 12), belt); beltM.position.y = 0.6; g.add(beltM);
-  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.15, 2), skin); head.position.y = 1.2; g.add(head);
-  if (look.hood) {
-    const hood = new THREE.Mesh(new THREE.SphereGeometry(0.175, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.62), mat(look.shirt, { map: detailTex }));
-    hood.position.set(0, 1.21, -0.02); g.add(hood);
-  } else if (look.hairStyle !== "bald") {
-    const hr = new THREE.Mesh(new THREE.IcosahedronGeometry(0.155, 2), hair); hr.position.set(0, 1.25, -0.03); hr.scale.set(1, 0.75, 1); g.add(hr);
-    if (look.hairStyle === "long") { const back = new THREE.Mesh(new THREE.BoxGeometry(0.27, 0.34, 0.08), hair); back.position.set(0, 1.07, -0.12); g.add(back); }
-    if (look.hairStyle === "ponytail") { const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.26, 7), hair); tail.position.set(0, 1.1, -0.17); tail.rotation.x = 0.35; g.add(tail); }
-  }
-  for (const ex of [-0.055, 0.055]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.018, 6, 4), mat("#1a1410")); eye.position.set(ex, 1.22, 0.135); g.add(eye); }
-  if (look.beard) { const beard = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), hair); beard.position.set(0, 1.17, 0.04); beard.scale.set(1, 0.9, 0.85); g.add(beard); }
-  if (look.apron) { const ap = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.55, 0.03), mat(look.apron, { map: detailTex })); ap.position.set(0, 0.68, 0.2); g.add(ap); }
-  let cape: THREE.Mesh | undefined;
-  if (look.cape) { cape = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.72, 0.025), mat(look.cape, { map: detailTex })); cape.position.set(0, 0.7, -0.21); cape.rotation.x = 0.14; g.add(cape); }
-  if (look.chain) for (const sx of [-1, 1]) { const pad = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat("#4a3b2c")); pad.position.set(sx * 0.21, 1.03, 0); g.add(pad); }
-  const legGeo = new THREE.BoxGeometry(0.11, 0.42, 0.12), armGeo = new THREE.BoxGeometry(0.09, 0.42, 0.1);
-  const limb = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number) => {
-    const pivot = new THREE.Group(); pivot.position.set(x, y, 0);
-    const mesh = new THREE.Mesh(geo, m); mesh.position.y = -0.2; pivot.add(mesh); g.add(pivot); return pivot;
-  };
-  const legL = limb(legGeo, trousers, -0.08, 0.58), legR = limb(legGeo, trousers, 0.08, 0.58);
-  const armL = limb(armGeo, shirt, -0.24, 1.02), armR = limb(armGeo, shirt, 0.24, 1.02);
-  const hand = new THREE.Group(); hand.position.set(0, -0.4, 0.05); armR.add(hand);
-  castShadows(g);
-  return { group: g, legL, legR, armL, armR, cape, hand };
-}
+import { humanoid } from "./human";
+export { humanoid, type Humanoid } from "./human";
 
 /** Tools and weapons the player can hold; only one is visible at a time. */
 export function heldItems(hand: THREE.Group) {
@@ -219,33 +206,73 @@ export function heldItems(hand: THREE.Group) {
 /* ---------- monsters ---------- */
 
 export function mobModel(look: MobDef["look"]): THREE.Group {
+  if (look === "imp") return goblin();
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); g.add(mesh); return mesh; };
+  const ellipsoid = (rx: number, ry: number, rz: number) => { const e = new THREE.SphereGeometry(1, 16, 12); e.scale(rx, ry, rz); return e; };
+  /** Leg bent at the knee: upper and lower segment meeting at (x, kneeY, z + kneeZ). */
+  const leg = (m: THREE.Material, x: number, z: number, top: number, kneeY: number, kneeZ: number, r: number) => {
+    const seg = (ax: number, ay: number, az: number, bx: number, by: number, bz: number, rr: number) => {
+      const len = Math.hypot(bx - ax, by - ay, bz - az);
+      const c = new THREE.Mesh(new THREE.CapsuleGeometry(rr, len, 3, 8), m);
+      c.position.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
+      c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(bx - ax, by - ay, bz - az).normalize());
+      g.add(c);
+    };
+    seg(x, top, z, x, kneeY, z + kneeZ, r);
+    seg(x, kneeY, z + kneeZ, x, r * 0.8, z + kneeZ * 0.2, r * 0.75);
+  };
   if (look === "rat") {
-    const fur = mat("#4e443c", { map: detailTex }), pink = mat("#b07a74");
-    add(new THREE.SphereGeometry(0.3, 12, 8), fur, 0, 0.24, 0).scale.set(0.9, 0.7, 1.4);
-    add(new THREE.ConeGeometry(0.14, 0.3, 8), fur, 0, 0.26, 0.5).rotation.x = Math.PI / 2;
-    for (const ex of [-0.08, 0.08]) add(new THREE.SphereGeometry(0.06, 8, 6), pink, ex, 0.38, 0.42);
-    add(new THREE.CylinderGeometry(0.015, 0.03, 0.55, 5), pink, 0, 0.18, -0.6).rotation.x = 1.2;
-  } else if (look === "imp") {
-    const skin = mat("#4f6e2a"), rag = mat("#4a3824", { map: detailTex });
-    add(new THREE.CylinderGeometry(0.15, 0.2, 0.45, 9), rag, 0, 0.45, 0);
-    add(new THREE.IcosahedronGeometry(0.17, 2), skin, 0, 0.82, 0);
+    const fur = mat("#3b342e", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }), pink = mat("#6e5049", { roughness: 0.6 }), eye = mat("#0c0a08", { roughness: 0.3 });
+    add(ellipsoid(0.2, 0.17, 0.34), fur, 0, 0.24, -0.04);
+    add(ellipsoid(0.12, 0.11, 0.16), fur, 0, 0.27, 0.3);
+    const snout = add(new THREE.ConeGeometry(0.07, 0.18, 10), fur, 0, 0.24, 0.47); snout.rotation.x = Math.PI / 2 + 0.2;
+    add(new THREE.SphereGeometry(0.022, 8, 6), pink, 0, 0.225, 0.56);
     for (const s of [-1, 1]) {
-      add(new THREE.ConeGeometry(0.05, 0.22, 5), skin, s * 0.2, 0.86, 0).rotation.z = s * 1.2;
-      add(new THREE.BoxGeometry(0.09, 0.25, 0.09), skin, s * 0.08, 0.12, 0);
+      const ear = add(ellipsoid(0.05, 0.055, 0.015), pink, s * 0.08, 0.37, 0.27); ear.rotation.y = s * 0.5;
+      add(new THREE.SphereGeometry(0.018, 8, 6), eye, s * 0.065, 0.3, 0.4);
+      leg(fur, s * 0.12, 0.2, 0.2, 0.1, -0.03, 0.035);
+      leg(fur, s * 0.13, -0.22, 0.22, 0.1, -0.06, 0.045);
     }
-    add(new THREE.CylinderGeometry(0.04, 0.07, 0.5, 6), M.bark, 0.24, 0.5, 0.12).rotation.x = 0.6;
+    const tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.2, -0.36), new THREE.Vector3(0.08, 0.1, -0.55), new THREE.Vector3(-0.05, 0.04, -0.8), new THREE.Vector3(0.1, 0.03, -1.0)]), 16, 0.018, 6), pink);
+    g.add(tail);
   } else {
-    const fur = mat("#6b6b6e", { map: detailTex }), dark = mat("#3d3d40", { map: detailTex });
-    add(new THREE.BoxGeometry(0.34, 0.34, 0.85), fur, 0, 0.5, 0);
-    add(new THREE.BoxGeometry(0.28, 0.26, 0.28), fur, 0, 0.68, 0.52);
-    add(new THREE.BoxGeometry(0.14, 0.12, 0.2), dark, 0, 0.62, 0.72);
-    for (const s of [-1, 1]) add(new THREE.ConeGeometry(0.05, 0.14, 4), dark, s * 0.09, 0.86, 0.48);
-    for (const [lx, lz] of [[-0.12, 0.3], [0.12, 0.3], [-0.12, -0.3], [0.12, -0.3]]) add(new THREE.BoxGeometry(0.08, 0.36, 0.08), dark, lx, 0.18, lz);
-    add(new THREE.BoxGeometry(0.07, 0.07, 0.4), fur, 0, 0.6, -0.55).rotation.x = 0.5;
+    const fur = mat("#47443f", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5 }), back = mat("#2c2a27", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5 });
+    const eye = mat("#c8a03c", { emissive: "#3a2a08", roughness: 0.3 }), nose = mat("#111", { roughness: 0.3 });
+    add(ellipsoid(0.17, 0.19, 0.45), back, 0, 0.68, -0.05);
+    add(ellipsoid(0.19, 0.24, 0.24), fur, 0, 0.7, 0.28);
+    const neck = add(ellipsoid(0.13, 0.17, 0.16), fur, 0, 0.84, 0.48); neck.rotation.x = -0.6;
+    add(ellipsoid(0.13, 0.12, 0.15), fur, 0, 0.94, 0.6);
+    const muzzle = add(new THREE.CylinderGeometry(0.045, 0.085, 0.24, 10), fur, 0, 0.9, 0.78); muzzle.rotation.x = Math.PI / 2 + 0.12;
+    add(new THREE.SphereGeometry(0.03, 8, 6), nose, 0, 0.89, 0.9);
+    for (const s of [-1, 1]) {
+      const ear = add(new THREE.ConeGeometry(0.045, 0.13, 4), back, s * 0.08, 1.07, 0.55); ear.rotation.z = -s * 0.25;
+      add(new THREE.SphereGeometry(0.017, 8, 6), eye, s * 0.065, 0.97, 0.71);
+      leg(back, s * 0.1, 0.3, 0.6, 0.3, 0.03, 0.036);
+      leg(back, s * 0.1, -0.36, 0.62, 0.34, -0.1, 0.042);
+    }
+    const tail = add(ellipsoid(0.045, 0.22, 0.05), back, 0, 0.56, -0.58); tail.rotation.x = 0.6;
   }
   castShadows(g);
+  return g;
+}
+
+/** Small, wiry humanoid with green-grey skin and pointed ears. */
+function goblin(): THREE.Group {
+  const h = humanoid({ skin: "#56603f", shirt: "#3e3226", trousers: "#2e271f", hair: "#1e1a14", hairStyle: "bald" });
+  const skin = mat("#56603f", { roughness: 0.6 });
+  for (const s of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 5), skin);
+    ear.position.set(s * 0.11, 1.56, -0.01); ear.rotation.z = -s * 1.25;
+    h.group.add(ear);
+  }
+  const club = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.022, 0.5, 7), M.bark);
+  club.rotation.x = Math.PI / 2; club.position.z = 0.22;
+  h.hand.add(club);
+  h.armR.rotation.x = -0.4;
+  h.group.scale.setScalar(0.74);
+  castShadows(h.group);
+  const g = new THREE.Group(); g.add(h.group);
   return g;
 }
 

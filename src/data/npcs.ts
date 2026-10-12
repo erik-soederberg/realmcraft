@@ -8,7 +8,7 @@ export const NPCS: NpcDef[] = [
   {
     id: "arvid",
     name: "Smeden Arvid",
-    look: { skin: "#b9876a", shirt: "#4a3a2e", trousers: "#2e2620", hair: "#6e6a64", apron: "#3a2a1e" },
+    look: { skin: "#b9876a", shirt: "#4a3a2e", trousers: "#2e2620", hair: "#6e6a64", apron: "#3a2a1e", beard: true },
     quests: ["smith_bars"],
     dialogue: [
       {
@@ -64,7 +64,7 @@ export const NPCS: NpcDef[] = [
   {
     id: "bo",
     name: "Jägaren Bo",
-    look: { skin: "#c4946e", shirt: "#3d4a2c", trousers: "#2f2a22", hair: "#2a1e16", hood: true },
+    look: { skin: "#c4946e", shirt: "#3d4a2c", trousers: "#2f2a22", hair: "#2a1e16", hood: true, beard: true },
     quests: ["wolf_trouble"],
     dialogue: [
       {
