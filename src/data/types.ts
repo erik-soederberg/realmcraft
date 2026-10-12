@@ -2,7 +2,7 @@
  * Content types. Everything a designer adds (items, monsters, NPCs, quests,
  * regions) is plain data described by these types; the engine reads it.
  */
-import type { SKILLS } from "./skills";
+import type { SKILLS, WeaponStyle } from "./skills";
 import type { ITEMS } from "./items";
 import type { MOBS } from "./mobs";
 
@@ -18,6 +18,9 @@ export type IconSpec =
   | { kind: "meat"; color: string }
   | { kind: "bones" }
   | { kind: "sword"; color: string }
+  | { kind: "greatsword"; color: string }
+  | { kind: "dagger"; color: string }
+  | { kind: "bow"; color: string }
   | { kind: "shield"; color: string; rim: string };
 
 export interface ItemDef {
@@ -40,6 +43,10 @@ export interface EquipStats {
   def?: number;
   /** Ticks between attacks; weapons only. */
   speed?: number;
+  /** Weapons only: which skill the weapon trains and uses. Two-handers and bows leave no hand for a shield. */
+  style?: WeaponStyle;
+  /** Weapons only: attack distance in tiles; 1 is melee. */
+  range?: number;
 }
 
 export type ResourceKind = "tree" | "oak" | "copper" | "tin" | "iron" | "fish";
@@ -79,6 +86,8 @@ export interface MobDef {
   def: number;
   drops: [ItemId, number][];
   respawn: number;
+  /** Experience for the kill, split between the weapon skill, Hälsa and Sköld. */
+  xp: number;
   aggressive: boolean;
   look: "rat" | "imp" | "wolf";
 }
@@ -97,7 +106,8 @@ export type DialogueAction =
   | { startQuest: string }
   | { setStage: { quest: string; stage: string } }
   | { completeQuest: string }
-  | { take: Partial<Record<ItemId, number>> };
+  | { take: Partial<Record<ItemId, number>> }
+  | { give: ItemId };
 
 export interface DialogueOption {
   text: string;

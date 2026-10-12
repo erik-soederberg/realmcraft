@@ -47,6 +47,10 @@ export class QuestEngine {
     const s = this.s();
     for (const a of actions) {
       if ("take" in a) this.hooks.take(a.take);
+      else if ("give" in a) {
+        if (!this.hooks.give(a.give)) s.bank[a.give] = (s.bank[a.give] ?? 0) + 1;
+        this.hooks.message(`Du fick ${ITEMS[a.give].name.toLowerCase()}.`, "sys");
+      }
       else if ("startQuest" in a) {
         const q = QUEST_BY_ID[a.startQuest]; if (!q) continue;
         s.quests[q.id] = q.steps[0].id;

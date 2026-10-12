@@ -1,4 +1,5 @@
 import type { Humanoid } from "./human";
+import type { WeaponStyle } from "../data/skills";
 
 /** What a humanoid is doing this frame; the pose is computed from it, never stored. */
 export interface PoseState {
@@ -17,6 +18,8 @@ export interface PoseState {
   hurt: number;
   /** Per-character offset so a crowd does not move in sync. */
   seed: number;
+  /** How the fight stance and attack look; one-handed when left out. */
+  style?: WeaponStyle;
 }
 
 const smooth = (x: number) => { const t = Math.min(1, Math.max(0, x)); return t * t * (3 - 2 * t); };
@@ -33,7 +36,7 @@ function keys(t: number, k: [number, number][]): number {
   return k[k.length - 1][1];
 }
 
-/** Poses a humanoid: walk and run cycles, idle breathing, sword fighting, chopping, mining, fishing and smithing. */
+/** Poses a humanoid: walk and run cycles, idle breathing, fighting in four weapon styles, chopping, mining, fishing and smithing. */
 export function poseHuman(b: Humanoid, s: PoseState): void {
   const { t, phase: p } = s;
   // Neutral pose; every branch below only adds to it.
@@ -64,23 +67,51 @@ export function poseHuman(b: Humanoid, s: PoseState): void {
   }
 
   if (s.action === "fight") {
-    if (!s.moving) {
-      legL = -0.28; legR = 0.22; kneeL = 0.3; kneeR = 0.32; rootY = -0.035;
+    const st = s.style ?? "onehand", k = s.strike, on = k >= 0;
+    if (!s.moving) { legL = -0.28; legR = 0.22; kneeL = 0.3; kneeR = 0.32; rootY = -0.035; }
+    if (st === "twohand") {
+      // Both hands on the long grip, blade up; the swing is a heavy overhead cut that leans into it.
+      armRx = on ? keys(k, [[0, -0.7], [0.35, -2.8], [0.6, -0.35], [1, -0.7]]) : -0.7;
+      elbowR = on ? keys(k, [[0, -0.9], [0.35, -0.6], [0.6, -0.25], [1, -0.9]]) : -0.9;
+      armRz = -0.32; armLx = armRx; armLz = 0.32; elbowL = elbowR;
+      twistY += on ? keys(k, [[0, 0.2], [0.35, 0.35], [0.6, -0.15], [1, 0.2]]) : 0.2;
+      leanX += on ? keys(k, [[0, 0.04], [0.35, -0.08], [0.6, 0.28], [1, 0.04]]) : 0.04;
+      if (on && !s.moving) { legL = keys(k, [[0, -0.28], [0.6, -0.55], [1, -0.28]]); kneeL = keys(k, [[0, 0.3], [0.6, 0.6], [1, 0.3]]); rootY = keys(k, [[0, -0.035], [0.6, -0.08], [1, -0.035]]); }
+      headY = -twistY * 0.7;
+    } else if (st === "dagger") {
+      // Low crouch with the blade held forward; the attack is a quick stab.
+      if (!s.moving) { kneeL = 0.45; kneeR = 0.45; rootY = -0.06; leanX += 0.1; }
+      armLx = -0.55; armLz = 0.2; elbowL = -1.1;
+      armRx = on ? keys(k, [[0, -0.8], [0.2, -0.55], [0.42, -1.5], [1, -0.8]]) : -0.8;
+      elbowR = on ? keys(k, [[0, -1.3], [0.2, -1.8], [0.42, -0.05], [1, -1.3]]) : -1.3;
+      armRz = 0.08;
+      twistY += on ? keys(k, [[0, 0.1], [0.2, 0.3], [0.42, -0.35], [1, 0.1]]) : 0.1;
+      leanX += on ? keys(k, [[0, 0], [0.42, 0.15], [1, 0]]) : 0;
+      headY = -twistY * 0.7;
+    } else if (st === "bow") {
+      // Side-on stance: bow arm straight at the target, string hand drawn to the cheek, released at 45 %.
+      if (!s.moving) { legL = -0.12; legR = 0.25; kneeL = 0.12; kneeR = 0.18; rootY = -0.015; }
+      twistY += 0.6;
+      armLx = -1.45; armLz = -0.5; elbowL = -0.05;
+      armRx = -1.4; armRz = on ? keys(k, [[0, -0.15], [0.4, -0.05], [0.47, 0.4], [1, -0.15]]) : -0.15;
+      elbowR = on ? keys(k, [[0, -1.7], [0.4, -2.45], [0.47, -1.8], [1, -1.7]]) : -2.3;
+      leanX -= 0.04;
+      headY = -twistY * 0.95; headX = 0.05;
+    } else {
+      // Guard: shield arm up in front, sword arm cocked; the swing is a forehand slash.
+      armLx = -0.75; armLz = 0.35; elbowL = -1.25;
+      twistY += 0.18;
+      armRx = -0.35; armRz = 0.12; elbowR = -0.4;
+      if (on) {
+        armRx = keys(k, [[0, -0.35], [0.3, -2.6], [0.55, -0.25], [1, -0.35]]);
+        armRz = keys(k, [[0, 0.12], [0.3, 0.35], [0.55, -0.35], [1, 0.12]]);
+        elbowR = keys(k, [[0, -0.4], [0.3, -0.8], [0.55, -0.05], [1, -0.4]]);
+        twistY = keys(k, [[0, 0.18], [0.3, 0.5], [0.55, -0.4], [1, 0.18]]);
+        leanX += keys(k, [[0, 0], [0.3, -0.05], [0.55, 0.18], [1, 0]]);
+        if (!s.moving) { legL = keys(k, [[0, -0.28], [0.55, -0.45], [1, -0.28]]); kneeL = keys(k, [[0, 0.3], [0.55, 0.5], [1, 0.3]]); }
+      }
+      headY = -twistY * 0.7;
     }
-    // Guard: shield arm up in front, sword arm cocked.
-    armLx = -0.75; armLz = 0.35; elbowL = -1.25;
-    twistY += 0.18;
-    armRx = -0.35; armRz = 0.12; elbowR = -0.4;
-    if (s.strike >= 0) {
-      const k = s.strike;
-      armRx = keys(k, [[0, -0.35], [0.3, -2.6], [0.55, -0.25], [1, -0.35]]);
-      armRz = keys(k, [[0, 0.12], [0.3, 0.35], [0.55, -0.35], [1, 0.12]]);
-      elbowR = keys(k, [[0, -0.4], [0.3, -0.8], [0.55, -0.05], [1, -0.4]]);
-      twistY = keys(k, [[0, 0.18], [0.3, 0.5], [0.55, -0.4], [1, 0.18]]);
-      leanX += keys(k, [[0, 0], [0.3, -0.05], [0.55, 0.18], [1, 0]]);
-      if (!s.moving) { legL = keys(k, [[0, -0.28], [0.55, -0.45], [1, -0.28]]); kneeL = keys(k, [[0, 0.3], [0.55, 0.5], [1, 0.3]]); }
-    }
-    headY = -twistY * 0.7;
   } else if (s.action === "chop") {
     const k = (s.actionT % 1.2) / 1.2;
     armRx = keys(k, [[0, -1.3], [0.5, -1.9], [0.62, -1.1], [1, -1.3]]);

@@ -19,6 +19,8 @@ export interface Humanoid {
   head: THREE.Group;
   cape?: THREE.Mesh;
   hand: THREE.Group;
+  /** Grip point in the left hand, for bows. */
+  handL: THREE.Group;
 }
 
 // Key heights, in world units (a tile is one unit).
@@ -215,6 +217,7 @@ export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): 
   };
   const L = arm(-1), R = arm(1), LL = leg(-1), LR = leg(1);
   const hand = new THREE.Group(); hand.position.set(0, -0.27, 0.02); R.el.add(hand);
+  const handL = new THREE.Group(); handL.position.set(0, -0.27, 0.02); L.el.add(handL);
   castShadows(g);
-  return { group: g, root, upper, head, legL: LL.hip, legR: LR.hip, kneeL: LL.kn, kneeR: LR.kn, armL: L.sh, armR: R.sh, elbowL: L.el, elbowR: R.el, cape, hand };
+  return { group: g, root, upper, head, legL: LL.hip, legR: LR.hip, kneeL: LL.kn, kneeR: LR.kn, armL: L.sh, armR: R.sh, elbowL: L.el, elbowR: R.el, cape, hand, handL };
 }

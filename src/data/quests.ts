@@ -14,7 +14,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "bars", log: "Smält 3 bronstackor och ge dem till Arvid vid ugnen.", ready: [{ hasItems: { bronze_bar: 3 } }] },
     ],
-    rewards: { xp: { smithing: 350, mining: 150 }, items: ["iron_sword"] },
+    rewards: { xp: { smithing: 350, mining: 150, onehand: 150 }, items: ["iron_sword"] },
   },
   {
     id: "fisher_supper",
@@ -34,7 +34,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "hunt", log: "Besegra 3 vargar i skogen nordväst om byn och berätta det för Bo.", ready: [{ killsSinceStart: { quest: "wolf_trouble", mob: "wolf", count: 3 } }] },
     ],
-    rewards: { xp: { melee: 900, hp: 300 }, items: ["bronze_shield"] },
+    rewards: { xp: { onehand: 500, bow: 500, shield: 400, hp: 300 }, items: ["bronze_shield"] },
   },
 ];
 

@@ -30,6 +30,27 @@ export const NPCS: NpcDef[] = [
         when: [{ quest: "smith_bars", stage: "bars" }],
         lines: ["Tre bronstackor, det är allt jag ber om. Koppar och tenn bryter du i stenbrottet österut."],
       },
+      {
+        when: [{ quest: "smith_bars", stage: "done" }, { hasItems: { bronze_bar: 2 } }],
+        lines: ["Du har brons med dig. Ska jag smida något åt dig?"],
+        options: [
+          { text: "Ett tvåhandssvärd (2 bronstackor).", actions: [{ take: { bronze_bar: 2 } }, { give: "bronze_greatsword" }], reply: ["Tungt och långsamt, men det klyver en varg på ett slag. Du behöver båda händerna, så skölden får vila."] },
+          { text: "En dolk (1 bronstacka).", actions: [{ take: { bronze_bar: 1 } }, { give: "bronze_dagger" }], reply: ["Kort och snabb. Hugg ofta, så hinner de aldrig svara."] },
+          { text: "Inte nu.", reply: ["Ugnen är varm när du ångrar dig."] },
+        ],
+      },
+      {
+        when: [{ quest: "smith_bars", stage: "done" }, { hasItems: { bronze_bar: 1 } }],
+        lines: ["En bronstacka räcker till en dolk. Ska jag?"],
+        options: [
+          { text: "Ja, smid en dolk.", actions: [{ take: { bronze_bar: 1 } }, { give: "bronze_dagger" }], reply: ["Kort och snabb. Hugg ofta, så hinner de aldrig svara."] },
+          { text: "Nej tack.", reply: ["Som du vill."] },
+        ],
+      },
+      {
+        when: [{ quest: "smith_bars", stage: "done" }],
+        lines: ["Ge mig två bronstackor så smider jag ett tvåhandssvärd, eller en tacka för en dolk."],
+      },
       { lines: ["Elden ska vara het nog att få järnet att sjunga. Kom tillbaka om du behöver låna städet."] },
     ],
   },
@@ -71,7 +92,7 @@ export const NPCS: NpcDef[] = [
         when: [{ quest: "wolf_trouble", stage: "not_started" }],
         lines: ["Ser du skogen där borta? Vargarna har blivit fler än jag hinner med.", "De ger sig på allt som rör sig. Är du stark nog att hjälpa till?"],
         options: [
-          { text: "Jag tar hand om dem.", actions: [{ startQuest: "wolf_trouble" }], reply: ["Tre vargar räcker för att resten ska hålla sig undan ett tag. Ta med mat, och ett svärd om du har."] },
+          { text: "Jag tar hand om dem.", actions: [{ startQuest: "wolf_trouble" }, { give: "shortbow" }], reply: ["Tre vargar räcker för att resten ska hålla sig undan ett tag. Ta min gamla kortbåge, så kan du skjuta på dem innan de hinner fram."] },
           { text: "Det låter farligt.", reply: ["Klokt. Kom tillbaka när du har ett svärd i handen."] },
         ],
       },

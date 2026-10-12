@@ -67,7 +67,12 @@ export function restoreState(data: unknown, spawn: [number, number]): GameState 
   const d = data as Record<string, any>;
   if (d.profile && typeof d.profile === "object" && typeof d.profile.name === "string" && validateName(d.profile.name).ok)
     f.profile = { name: d.profile.name.trim(), appearance: restoreAppearance(d.profile.appearance) };
-  if (d.xp && typeof d.xp === "object") for (const k of Object.keys(f.xp) as SkillId[]) if (d.xp[k] != null) f.xp[k] = Math.max(0, Number(d.xp[k]) || 0);
+  if (d.xp && typeof d.xp === "object") {
+    for (const k of Object.keys(f.xp) as SkillId[]) if (d.xp[k] != null) f.xp[k] = Math.max(0, Number(d.xp[k]) || 0);
+    // Saves from before the weapon skills: the old melee skill becomes one-handed, with a share for the shield.
+    const melee = Math.max(0, Number(d.xp.melee) || 0);
+    if (melee && d.xp.onehand == null) { f.xp.onehand = melee; f.xp.shield = Math.floor(melee / 3); }
+  }
   if (Array.isArray(d.inv)) for (let i = 0; i < INVENTORY_SIZE; i++) f.inv[i] = isItem(d.inv[i]) ? d.inv[i] : null;
   f.bank = counts(d.bank, isItem);
   f.gathered = counts(d.gathered, isItem);

@@ -8,7 +8,7 @@ import { Creator } from "../ui/creator";
 import { LocalNameRegistry, type NameRegistry } from "./names";
 import { FISH_TABLE } from "../data/resources";
 import { RECIPES, STATION_EMPTY, STATION_START, type Recipe } from "../data/recipes";
-import { SKILLS, levelForXp } from "../data/skills";
+import { SKILLS, levelForXp, type WeaponStyle } from "../data/skills";
 import type { EquipSlot, ItemId, SkillId } from "../data/types";
 import { CameraRig, bindPointer } from "../engine/controls";
 import { GLOW, HpBar, heldItems, humanoid, type Humanoid } from "../entities/models";
@@ -68,6 +68,7 @@ export class Game {
   private bar: HpBar;
   private marker: THREE.Group;
   private markerT = 9;
+  private arrows: { mesh: THREE.Group; from: THREE.Vector3; mob: Mob; t: number; land: () => void }[] = [];
   private hoverAt: [number, number] | null = null;
   private hoverDirty = false;
   private ray = new THREE.Raycaster();
@@ -170,7 +171,20 @@ export class Game {
   /* ---------- stats ---------- */
   level(skill: SkillId): number { return levelForXp(this.s.xp[skill]); }
   maxHp(): number { return this.level("hp"); }
-  combatLevel(): number { return Math.floor(this.level("melee") * 0.65 + this.level("hp") * 0.25) + 1; }
+  combatLevel(): number {
+    const best = Math.max(this.level("onehand"), this.level("twohand"), this.level("dagger"), this.level("bow"));
+    return Math.floor(best * 0.5 + this.level("shield") * 0.25 + this.level("hp") * 0.25) + 1;
+  }
+  /** The wielded weapon's fighting style; bare fists count as one-handed. */
+  weaponStyle(): WeaponStyle { const w = this.s.equip.weapon; return (w && itemDef(w).equip?.style) || "onehand"; }
+  private weaponRange(): number { const w = this.s.equip.weapon; return (w && itemDef(w).equip?.range) || 1; }
+  /** Defence level: the shield skill in full with a shield worn, half without. */
+  private defenceLevel(): number { const l = this.level("shield"); return this.s.equip.shield ? l : Math.floor(l / 2); }
+  /** Whether the player can attack a monster on tile (x, z) from where they stand. */
+  private inRange(x: number, z: number): boolean {
+    const r = this.weaponRange();
+    return r <= 1 ? this.adjacent(x, z) : Math.max(Math.abs(x - this.tx), Math.abs(z - this.tz)) <= r;
+  }
   totalLevel(): number { return (Object.keys(SKILLS) as SkillId[]).reduce((a, k) => a + this.level(k), 0); }
 
   gainXp(skill: SkillId, xp: number): void {
@@ -212,9 +226,15 @@ export class Game {
       this.hud.hp(this.s.hp, this.maxHp());
     } else if (it.equip) {
       const slot = it.equip.slot;
+      // Two-handers and bows need both hands, so they and a shield push each other off.
+      const bothHands = (w?: ItemId) => !!w && (itemDef(w).equip?.style === "twohand" || itemDef(w).equip?.style === "bow");
+      const clash: EquipSlot | null = slot === "weapon" && bothHands(id) && this.s.equip.shield ? "shield"
+        : slot === "shield" && bothHands(this.s.equip.weapon) ? "weapon" : null;
+      if (clash && this.s.equip[slot] && !this.freeSlots()) { this.hud.message("Packningen är full.", "warn"); return; }
       this.s.inv[i] = this.s.equip[slot] ?? null;
       this.s.equip[slot] = id;
-      this.hud.message(`Du tar på dig ${it.name.toLowerCase()}.`);
+      if (clash) { this.giveItem(this.s.equip[clash]!); delete this.s.equip[clash]; }
+      this.hud.message(`Du ${slot === "weapon" ? "håller nu" : "tar på dig"} ${it.name.toLowerCase()}.${clash === "shield" ? " Du behöver båda händerna, så skölden åker ner i packningen." : clash === "weapon" ? " Skölden behöver en hand, så vapnet åker ner i packningen." : ""}`);
       this.refreshGear();
     } else {
       this.s.inv[i] = null;
@@ -248,6 +268,7 @@ export class Game {
   private refreshGear(): void {
     const w = this.s.equip.weapon, sh = this.s.equip.shield;
     if (w) this.held.setBlade(w === "iron_sword" ? "#a8aeb4" : "#c08040");
+    this.held.setWeapon(!w ? null : this.weaponStyle() === "twohand" ? "greatsword" : this.weaponStyle() === "dagger" ? "dagger" : this.weaponStyle() === "bow" ? "bow" : "sword");
     const icon = sh ? itemDef(sh).icon : null;
     this.held.setShield(icon && icon.kind === "shield" ? icon : null);
   }
@@ -314,6 +335,7 @@ export class Game {
     this.act = null; this.dialogue.close();
     const [sx, sz] = this.startTile(), r = reach(this.world, sx, sz);
     if (Math.abs(sx - t.x) + Math.abs(sz - t.z) === 1 && !this.path.length) { this.pending = t; return; }
+    if (t.type === "mob" && this.weaponRange() > 1 && this.inRange(t.x, t.z)) { this.path = []; this.pending = t; return; }
     const goal = nearestBeside(r, t.x, t.z);
     if (!goal) { this.hud.message("Du kan inte nå dit härifrån.", "warn"); return; }
     this.setPath(r.pathTo(goal[0], goal[1]));
@@ -430,17 +452,55 @@ export class Game {
 
   private fightTick(m: Mob): void {
     if (m.dead) { this.act = null; return; }
-    if (!this.adjacent(m.x, m.z)) { if (!this.path.length) { this.approach(m); this.act = null; } return; }
+    if (!this.inRange(m.x, m.z)) { if (!this.path.length) { this.approach(m); this.act = null; } return; }
     this.face = Math.atan2(m.x + 0.5 - this.fx, m.z + 0.5 - this.fz);
     if (--this.atkCd > 0) return;
     const w = this.s.equip.weapon ? itemDef(this.s.equip.weapon).equip : undefined, g = this.gearBonus();
     this.atkCd = w?.speed ?? 4;
-    const lv = this.level("melee");
+    const lv = this.level(this.weaponStyle());
     const dmg = Math.random() < this.hitChance(lv, g.acc, m.def.def) ? 1 + Math.floor(Math.random() * this.maxHit(lv, g.str)) : 0;
-    m.hp -= dmg; m.target = true; m.showBar = 5; m.flash = dmg > 0 ? 1 : 0; this.strike = 0;
-    this.hud.splat(m.group.position, dmg, this.gfx.camera, this.gfx.renderer.domElement);
-    if (dmg) { this.gainXp("melee", dmg * 4); this.gainXp("hp", Math.round(dmg * 13.3) / 10); }
-    if (m.hp <= 0) this.killMob(m);
+    m.target = true; this.strike = 0;
+    const land = () => {
+      if (m.dead) return;
+      m.hp -= dmg; m.showBar = 5; m.flash = dmg > 0 ? 1 : 0;
+      this.hud.splat(m.group.position, dmg, this.gfx.camera, this.gfx.renderer.domElement);
+      if (m.hp <= 0) this.killMob(m);
+    };
+    if (this.weaponStyle() === "bow") this.shootArrow(m, land); else land();
+  }
+
+  /** Looses an arrow at the monster; the hit lands when the arrow arrives. */
+  private shootArrow(m: Mob, land: () => void): void {
+    const mesh = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.6, 5), new THREE.MeshStandardMaterial({ color: "#8a6a44", roughness: 0.8 }));
+    shaft.rotation.x = Math.PI / 2; mesh.add(shaft);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.08, 4), new THREE.MeshStandardMaterial({ color: "#9a7a50", metalness: 0.5, roughness: 0.4 }));
+    tip.rotation.x = Math.PI / 2; tip.position.z = 0.33; mesh.add(tip);
+    const fl = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.05, 0.1), new THREE.MeshStandardMaterial({ color: "#d8d0c0" }));
+    fl.position.z = -0.26; mesh.add(fl);
+    mesh.visible = false;
+    this.gfx.scene.add(mesh);
+    const from = new THREE.Vector3(this.fx, this.world.heightAt(this.fx, this.fz) + 1.3, this.fz);
+    // Negative time is the draw: the arrow leaves the string partway into the shot animation.
+    this.arrows.push({ mesh, from, mob: m, t: -0.22, land });
+  }
+
+  private flyArrows(dt: number): void {
+    this.arrows = this.arrows.filter(a => {
+      a.t += dt;
+      if (a.t < 0) return true;
+      const to = new THREE.Vector3(a.mob.fx, this.world.heightAt(a.mob.fx, a.mob.fz) + (a.mob.def.look === "rat" ? 0.3 : 0.8), a.mob.fz);
+      const dur = 0.12 + a.from.distanceTo(to) * 0.035, k = Math.min(1, a.t / dur);
+      const p = a.from.clone().lerp(to, k); p.y += Math.sin(k * Math.PI) * a.from.distanceTo(to) * 0.06;
+      a.mesh.visible = true;
+      a.mesh.lookAt(p.clone().add(to.clone().sub(a.from)));
+      a.mesh.position.copy(p);
+      if (k < 1) return true;
+      this.gfx.scene.remove(a.mesh);
+      a.mesh.traverse(o => { if (o instanceof THREE.Mesh) { o.geometry.dispose(); (o.material as THREE.Material).dispose(); } });
+      a.land();
+      return false;
+    });
   }
 
   private killMob(m: Mob): void {
@@ -448,13 +508,18 @@ export class Game {
     m.dying = 1; m.bar.group.visible = false; m.hit.position.y = -50;
     if (this.act?.kind === "fight" && this.act.mob === m) this.act = null;
     this.s.kills[m.id] = (this.s.kills[m.id] ?? 0) + 1;
+    // Experience comes per kill: the weapon's skill in full, a third each to Hälsa and, with a shield worn, Sköld.
+    const xp = m.def.xp;
+    this.gainXp(this.weaponStyle(), xp);
+    this.gainXp("hp", Math.round(xp / 3));
+    if (this.s.equip.shield) this.gainXp("shield", Math.round(xp / 3));
     const loot: string[] = [];
     for (const [id, chance] of m.def.drops) {
       if (Math.random() >= chance) continue;
       if (this.giveItem(id)) loot.push(ITEMS[id].name.toLowerCase());
       else { this.hud.message("Packningen är full, bytet går förlorat.", "warn"); break; }
     }
-    this.hud.message(`Du besegrade ${m.def.the}${loot.length ? " och fick " + loot.join(" och ") : ""}.`, "sys");
+    this.hud.message(`Du besegrade ${m.def.the} (+${xp} XP)${loot.length ? " och fick " + loot.join(" och ") : ""}.`, "sys");
     events.emit("kill", { mob: m.id });
     this.refreshMarkers();
     this.afterChange();
@@ -490,7 +555,7 @@ export class Game {
       }
       if (--m.atkCd > 0) return;
       m.atkCd = 4; m.lunge = 0;
-      const dmg = Math.random() < this.hitChance(d.att, 0, this.level("melee"), this.gearBonus().def) ? 1 + Math.floor(Math.random() * this.maxHit(d.str, 0)) : 0;
+      const dmg = Math.random() < this.hitChance(d.att, 0, this.defenceLevel(), this.gearBonus().def) ? 1 + Math.floor(Math.random() * this.maxHit(d.str, 0)) : 0;
       this.hurt(dmg);
       if (!this.act && !this.path.length && !this.pending) { this.act = { kind: "fight", mob: m }; this.atkCd = 1; }
     } else if (Math.random() < 0.12) {
@@ -522,7 +587,7 @@ export class Game {
         if (h.target) {
           const t = h.target;
           this.showMarker(new THREE.Vector3(t.x + 0.5, h.point.y, t.z + 0.5), true);
-          if (t.type === "mob" && this.adjacent(t.x, t.z)) { this.path = []; this.pending = null; this.interact(t); }
+          if (t.type === "mob" && this.inRange(t.x, t.z)) { this.path = []; this.pending = null; this.interact(t); }
           else this.approach(t);
         } else if (h.tile) { this.showMarker(h.point, false); this.walkTo(h.tile[0], h.tile[1]); }
       },
@@ -578,7 +643,12 @@ export class Game {
     if (this.path.length) {
       const [gx0, gz0] = this.path[0], gx = gx0 + 0.5, gz = gz0 + 0.5;
       const dx = gx - this.fx, dz = gz - this.fz, d = Math.hypot(dx, dz), step = (this.s.run ? RUN : WALK) * dt;
-      if (d <= step) { this.fx = gx; this.fz = gz; this.tx = gx0; this.tz = gz0; this.path.shift(); this.onEnterTile(); }
+      if (d <= step) {
+        this.fx = gx; this.fz = gz; this.tx = gx0; this.tz = gz0; this.path.shift(); this.onEnterTile();
+        // An archer stops walking as soon as the target is within reach.
+        const p = this.pending;
+        if (p?.type === "mob" && this.weaponRange() > 1 && this.inRange(p.x, p.z)) this.path = [];
+      }
       else { this.fx += (dx / d) * step; this.fz += (dz / d) * step; }
       if (d > 0.001) this.face = Math.atan2(dx, dz);
       moving = this.path.length > 0;
@@ -650,17 +720,17 @@ export class Game {
     this.strike += dt; this.hurtAnim = Math.max(0, this.hurtAnim - dt * 3);
     const a = this.act;
     let action: PoseState["action"] = "idle";
-    if (a?.kind === "fight") { action = "fight"; this.held.show(this.s.equip.weapon ? "sword" : null); }
+    if (a?.kind === "fight") { action = "fight"; this.held.show(this.s.equip.weapon ? "weapon" : null); }
     else if (a?.kind === "craft") { action = "craft"; this.held.show(null); }
     else if (a?.kind === "gather") {
       const sk = a.node.def.skill;
       action = sk === "wc" ? "chop" : sk === "mining" ? "mine" : "fish";
       this.held.show(sk === "wc" ? "axe" : sk === "mining" ? "pick" : "net");
-    } else this.held.show(this.s.equip.weapon ? "sword" : null);
+    } else this.held.show(this.s.equip.weapon ? "weapon" : null);
     if (action === "idle" || action === "fight") this.swing = 0; else this.swing += dt;
     poseHuman(b, {
       t: this.clock, phase: this.walkPhase, moving, running: this.s.run, action, actionT: this.swing,
-      strike: this.strike < 0.5 ? this.strike / 0.5 : -1, hurt: this.hurtAnim, seed: 0,
+      strike: this.strike < 0.5 ? this.strike / 0.5 : -1, hurt: this.hurtAnim, seed: 0, style: this.s.equip.weapon ? this.weaponStyle() : "onehand",
     });
     this.hurtBar = Math.max(0, this.hurtBar - dt);
     this.bar.group.visible = this.hurtBar > 0 || a?.kind === "fight";
@@ -668,6 +738,7 @@ export class Game {
   }
 
   private animateWorld(dt: number): void {
+    this.flyArrows(dt);
     for (const t of this.terrains) t.update(this.clock);
     for (const n of this.resources) n.model.update?.(this.clock);
     GLOW.emissiveIntensity = 2.0 + Math.sin(this.clock * 9) * 0.25 + Math.sin(this.clock * 23) * 0.15;

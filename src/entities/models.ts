@@ -193,16 +193,34 @@ export function heldItems(body: Humanoid) {
   const axe = new THREE.Group(); axe.add(handle(0.5)); { const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.1), metal("#8a6a48")); h.position.set(0, 0.06, 0.42); axe.add(h); }
   const pick = new THREE.Group(); pick.add(handle(0.5)); { const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.4), metal("#9aa3a8")); h.rotation.x = Math.PI / 2; h.position.set(0, 0, 0.44); pick.add(h); }
   const net = new THREE.Group(); net.add(handle(0.55)); { const h = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.015, 4, 12), mat("#cfc8b0")); h.rotation.x = Math.PI / 2; h.position.set(0, 0, 0.58); net.add(h); }
-  const sword = new THREE.Group();
   const bladeMat = metal("#c08040");
+  /** A straight blade along +z: grip at the hand, guard, blade and point. */
+  const blade = (len: number, width: number, gripLen: number, guardW: number) => {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.022, width, len), bladeMat); b.position.z = 0.09 + len / 2; g.add(b);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(width * 0.5, 0.08, 4), bladeMat); tip.rotation.x = Math.PI / 2; tip.position.z = 0.13 + len; tip.scale.set(0.8, 1, 2); g.add(tip);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(guardW, 0.035, 0.035), mat("#3a2a1e", { metalness: 0.4 })); guard.position.z = 0.09; g.add(guard);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, gripLen, 6), mat("#3a2414")); grip.rotation.x = Math.PI / 2; grip.position.z = 0.09 - gripLen / 2 + 0.02; g.add(grip);
+    return g;
+  };
+  const sword = blade(0.6, 0.055, 0.13, 0.2);
+  const dagger = blade(0.24, 0.045, 0.1, 0.12);
+  // The two-hander's long grip reaches back so both hands fit on it.
+  const greatsword = blade(1.0, 0.07, 0.32, 0.3);
+  // A bow held upright in the left hand (hand +z points up when the arm is raised forward); the string sits on the archer's side (+y).
+  const bow = new THREE.Group();
   {
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.055, 0.6), bladeMat); blade.position.z = 0.4; sword.add(blade);
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.028, 0.08, 4), bladeMat); tip.rotation.x = Math.PI / 2; tip.position.z = 0.74; tip.scale.set(0.8, 1, 2); sword.add(tip);
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.035), mat("#3a2a1e", { metalness: 0.4 })); guard.position.z = 0.09; sword.add(guard);
-    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6), mat("#3a2414")); grip.rotation.x = Math.PI / 2; grip.position.z = 0.02; sword.add(grip);
+    const wood = mat("#6a4424", { roughness: 0.7 });
+    const curve = new THREE.CatmullRomCurve3([[0.13, -0.62], [0.05, -0.4], [0, 0], [0.05, 0.4], [0.13, 0.62]].map(([y, z]) => new THREE.Vector3(0, y, z)));
+    bow.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.018, 6), wood));
+    const string = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 1.24, 3), mat("#e8e0cc"));
+    string.rotation.x = Math.PI / 2; string.position.y = 0.13; bow.add(string);
   }
-  const all = { axe, pick, net, sword };
-  for (const o of Object.values(all)) { castShadows(o); o.visible = false; hand.add(o); }
+  const weapons = { sword, dagger, greatsword };
+  let weapon: keyof typeof weapons | "bow" | null = "sword";
+  const all = { axe, pick, net };
+  for (const o of [...Object.values(all), ...Object.values(weapons)]) { castShadows(o); o.visible = false; hand.add(o); }
+  castShadows(bow); bow.visible = false; body.handL.add(bow);
 
   // Round shield strapped to the outside of the left forearm.
   const shieldFace = mat("#6a4a2c", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }), shieldRim = mat("#8a8478", { metalness: 0.6, roughness: 0.45 });
@@ -217,7 +235,13 @@ export function heldItems(body: Humanoid) {
   castShadows(shield);
   body.elbowL.add(shield);
   return {
-    show(which: keyof typeof all | null) { for (const [k, o] of Object.entries(all)) o.visible = k === which; },
+    /** Shows a tool, the wielded weapon ("weapon"), or nothing. */
+    show(which: keyof typeof all | "weapon" | null) {
+      for (const [k, o] of Object.entries(all)) o.visible = k === which;
+      for (const [k, o] of Object.entries(weapons)) o.visible = which === "weapon" && k === weapon;
+      bow.visible = which === "weapon" && weapon === "bow";
+    },
+    setWeapon(kind: keyof typeof weapons | "bow" | null) { weapon = kind; },
     setBlade(color: string) { bladeMat.color.set(color); },
     setShield(look: { color: string; rim: string } | null) {
       shield.visible = !!look;
