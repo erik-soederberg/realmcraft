@@ -172,6 +172,29 @@ export function stationModel(kind: StationKind): THREE.Group {
     const horn = add(new THREE.ConeGeometry(0.09, 0.32, 10), M.ironTop, 0.36, 0.67, 0); horn.rotation.z = -Math.PI / 2; horn.scale.set(1, 1, 0.75);
     add(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 6), mat("#4a3420"), -0.12, 0.74, 0.14).rotation.z = 1.4;
     add(new THREE.BoxGeometry(0.06, 0.08, 0.1), M.ironTop, 0.02, 0.76, 0.14);
+  } else if (kind === "cave_entrance") {
+    // A ragged arch of boulders around a black mouth, opening toward +z.
+    const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.85, 20, 0, Math.PI), new THREE.MeshBasicMaterial({ color: "#020202" }));
+    mouth.position.set(0, 0.02, 0.05); mouth.scale.set(1, 1.5, 1); g.add(mouth);
+    for (let k = 0; k <= 12; k++) {
+      const a = (k / 12) * Math.PI, r = 0.98 + Math.sin(k * 2.3) * 0.08;
+      const b = add(jitter(new THREE.IcosahedronGeometry(0.34 + (k % 3) * 0.06, 0), 0.12, 40 + k), k % 2 ? M.rock : M.rockDark, Math.cos(a) * r, Math.sin(a) * r * 1.5, -0.05);
+      b.rotation.set(k, k * 1.7, 0);
+    }
+    for (const [x, y, z, s] of [[-1.2, 0.3, -0.5, 0.55], [1.25, 0.35, -0.45, 0.6], [0, 1.9, -0.55, 0.7], [-0.7, 1.4, -0.7, 0.6], [0.75, 1.5, -0.7, 0.55]])
+      add(jitter(new THREE.IcosahedronGeometry(s, 1), 0.2, 90 + x * 10), M.rockDark, x, y, z);
+    // Old mine timbering in the mouth, so the opening reads from a distance.
+    for (const s of [-1, 1]) { const post = add(new THREE.BoxGeometry(0.13, 1.45, 0.13), M.bark, s * 0.6, 0.72, 0.25); post.rotation.z = s * 0.06; }
+    add(new THREE.BoxGeometry(1.5, 0.15, 0.16), M.bark, 0, 1.45, 0.25);
+    const lantern = add(new THREE.BoxGeometry(0.1, 0.14, 0.1), M.glow, 0.45, 1.25, 0.36); lantern.userData.noShadow = true;
+  } else if (kind === "cave_exit") {
+    // Rubble under a shaft of daylight, with a knotted rope hanging down.
+    for (let k = 0; k < 7; k++) add(jitter(new THREE.IcosahedronGeometry(0.18 + (k % 3) * 0.07, 0), 0.08, 60 + k), k % 2 ? M.rock : M.rockDark, Math.cos(k * 2.4) * 0.35, 0.12, Math.sin(k * 2.4) * 0.35);
+    const rope = add(new THREE.CylinderGeometry(0.025, 0.025, 4, 6), mat("#8a7048"), 0, 2, 0);
+    rope.userData.noShadow = true;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 6, 16, 1, true), new THREE.MeshBasicMaterial({ color: "#d8e4ff", transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    shaft.position.y = 3; shaft.userData.noShadow = true; g.add(shaft);
+    const glow = new THREE.PointLight("#c8d8ff", 6, 6, 1.5); glow.position.y = 2.5; g.add(glow);
   } else {
     add(new THREE.BoxGeometry(0.95, 0.6, 0.7), M.stone, 0, 0.3, 0);
     add(new THREE.BoxGeometry(0.98, 0.06, 0.73), M.ironTop, 0, 0.63, 0);
@@ -254,6 +277,8 @@ export function heldItems(body: Humanoid) {
 
 export function mobModel(look: MobDef["look"]): THREE.Group {
   if (look === "imp") return goblin();
+  if (look === "bandit") return bandit();
+  if (look === "troll") return troll();
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); g.add(mesh); return mesh; };
   const ellipsoid = (rx: number, ry: number, rz: number) => { const e = new THREE.SphereGeometry(1, 16, 12); e.scale(rx, ry, rz); return e; };
@@ -283,6 +308,43 @@ export function mobModel(look: MobDef["look"]): THREE.Group {
     }
     const tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.2, -0.36), new THREE.Vector3(0.08, 0.1, -0.55), new THREE.Vector3(-0.05, 0.04, -0.8), new THREE.Vector3(0.1, 0.03, -1.0)]), 16, 0.018, 6), pink);
     g.add(tail);
+  } else if (look === "bear") {
+    const fur = mat("#3a2a1c", { map: detailTex, bumpMap: detailTex, bumpScale: 3 }), dark = mat("#26190f", { map: detailTex, bumpMap: detailTex, bumpScale: 3 });
+    const eye = mat("#0a0806", { roughness: 0.3 }), nose = mat("#111", { roughness: 0.3 });
+    add(ellipsoid(0.42, 0.4, 0.68), fur, 0, 0.92, -0.05);
+    add(ellipsoid(0.4, 0.42, 0.36), dark, 0, 1.05, 0.32);
+    add(ellipsoid(0.24, 0.22, 0.26), fur, 0, 1.0, 0.72);
+    const muzzle = add(new THREE.CylinderGeometry(0.09, 0.13, 0.22, 10), mat("#5a4430", { map: detailTex }), 0, 0.94, 0.95); muzzle.rotation.x = Math.PI / 2;
+    add(new THREE.SphereGeometry(0.05, 8, 6), nose, 0, 0.96, 1.06);
+    for (const s of [-1, 1]) {
+      add(new THREE.SphereGeometry(0.07, 10, 8), dark, s * 0.17, 1.2, 0.68);
+      add(new THREE.SphereGeometry(0.025, 8, 6), eye, s * 0.11, 1.07, 0.9);
+      leg(dark, s * 0.22, 0.38, 0.85, 0.42, 0.02, 0.1);
+      leg(dark, s * 0.24, -0.45, 0.85, 0.42, -0.08, 0.11);
+    }
+  } else if (look === "spider") {
+    const chitin = mat("#1d1a18", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5, roughness: 0.55 }), band = mat("#5a2a1c", { roughness: 0.6 });
+    const eye = mat("#ff3a22", { emissive: "#c01808", emissiveIntensity: 1.6, roughness: 0.2 });
+    add(ellipsoid(0.36, 0.3, 0.44), chitin, 0, 0.55, -0.42);
+    add(ellipsoid(0.2, 0.06, 0.3), band, 0, 0.82, -0.45);
+    add(ellipsoid(0.24, 0.17, 0.26), chitin, 0, 0.45, 0.12);
+    for (const s of [-1, 1]) {
+      for (let k = 0; k < 4; k++) {
+        // Each leg: up to a high knee, then down to the ground well outside the body.
+        const z = 0.26 - k * 0.15, spread = 0.95 - Math.abs(k - 1.5) * 0.1;
+        const knee = new THREE.Vector3(s * 0.55, 0.85, z + (k - 1.5) * 0.18), foot = new THREE.Vector3(s * spread, 0.03, z + (k - 1.5) * 0.42);
+        const start = new THREE.Vector3(s * 0.16, 0.45, z * 0.5 + 0.1);
+        for (const [a, b, r] of [[start, knee, 0.03], [knee, foot, 0.022]] as [THREE.Vector3, THREE.Vector3, number][]) {
+          const c = new THREE.Mesh(new THREE.CapsuleGeometry(r, a.distanceTo(b), 3, 6), chitin);
+          c.position.copy(a).add(b).multiplyScalar(0.5);
+          c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+          g.add(c);
+        }
+      }
+      add(new THREE.SphereGeometry(0.035, 8, 6), eye, s * 0.07, 0.52, 0.36);
+      add(new THREE.SphereGeometry(0.022, 8, 6), eye, s * 0.13, 0.55, 0.32);
+      const fang = add(new THREE.ConeGeometry(0.025, 0.12, 6), band, s * 0.05, 0.36, 0.36); fang.rotation.x = Math.PI;
+    }
   } else {
     const fur = mat("#47443f", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5 }), back = mat("#2c2a27", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5 });
     const eye = mat("#c8a03c", { emissive: "#3a2a08", roughness: 0.3 }), nose = mat("#111", { roughness: 0.3 });
@@ -317,6 +379,38 @@ function goblin(): THREE.Group {
   club.rotation.x = Math.PI / 2; club.position.z = 0.22;
   h.hand.add(club);
   h.group.scale.setScalar(0.74);
+  castShadows(h.group);
+  const g = new THREE.Group(); g.add(h.group);
+  g.userData.human = h;
+  return g;
+}
+
+/** A hooded robber with a short blade. */
+function bandit(): THREE.Group {
+  const h = humanoid({ skin: "#b88a68", shirt: "#4a2a22", trousers: "#2a2420", hair: "#2a1e16", hood: true, beard: true });
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.5), mat("#8a8e92", { metalness: 0.6, roughness: 0.4 }));
+  blade.position.z = 0.3; h.hand.add(blade);
+  castShadows(h.group);
+  const g = new THREE.Group(); g.add(h.group);
+  g.userData.human = h;
+  return g;
+}
+
+/** A hulking grey cave troll with a stone-headed club. */
+function troll(): THREE.Group {
+  const h = humanoid({ skin: "#5e655a", shirt: "#3a3226", trousers: "#2a241c", hair: "#1e1a14", hairStyle: "bald", beard: true });
+  const skin = mat("#5e655a", { roughness: 0.7, map: detailTex, bumpMap: detailTex, bumpScale: 2 });
+  for (const s of [-1, 1]) {
+    const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.08, 6), mat("#d8ccb0"));
+    tusk.position.set(s * 0.04, -0.07, 0.1); h.head.add(tusk);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), skin); ear.scale.set(0.5, 1, 1);
+    ear.position.set(s * 0.1, 0, -0.01); h.head.add(ear);
+  }
+  const club = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.8, 7), M.bark); shaft.rotation.x = Math.PI / 2; shaft.position.z = 0.35; club.add(shaft);
+  const head = new THREE.Mesh(jitter(new THREE.IcosahedronGeometry(0.16, 0), 0.06, 8), M.rockDark); head.position.z = 0.78; club.add(head);
+  h.hand.add(club);
+  h.group.scale.setScalar(1.45);
   castShadows(h.group);
   const g = new THREE.Group(); g.add(h.group);
   g.userData.human = h;

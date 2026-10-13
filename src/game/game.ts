@@ -13,7 +13,7 @@ import type { EquipSlot, ItemId, SkillId } from "../data/types";
 import { CameraRig, bindPointer } from "../engine/controls";
 import { GLOW, HpBar, heldItems, humanoid, type Humanoid } from "../entities/models";
 import { poseHuman, type PoseState } from "../entities/animate";
-import { Mob, Npc, ResourceNode, Station, populateRegion, type Interactable } from "../entities/entities";
+import { MOB_HEIGHT, Mob, Npc, ResourceNode, Station, populateRegion, type Interactable } from "../entities/entities";
 import { DialogueBox, type DialogueChoice } from "../ui/dialogue";
 import { $, Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
@@ -118,7 +118,7 @@ export class Game {
     this.refreshMarkers();
     this.panels.render();
     this.hud.hp(this.s.hp, this.maxHp());
-    this.hud.region(this.world.regionAt(this.tx, this.tz)?.def.name ?? "");
+    this.onEnterTile();
     if (this.s.profile) this.welcome(false);
     else this.startCreation();
   }
@@ -194,8 +194,8 @@ export class Game {
     this.hud.xpDrop(skill, xp);
     events.emit("xp", { skill, amount: xp });
     if (after > before) {
-      this.hud.message(`Grattis! Du har nått nivå ${after} i ${SKILLS[skill].name}.`, "lvl");
-      this.hud.toast(`Nivå ${after}`, SKILLS[skill].name);
+      this.hud.message(`Grattis! Du har nått level ${after} i ${SKILLS[skill].name}.`, "lvl");
+      this.hud.toast(`Level ${after}`, SKILLS[skill].name);
       if (skill === "hp") { this.s.hp += after - before; this.hud.hp(this.s.hp, this.maxHp()); }
       events.emit("levelUp", { skill, level: after });
     }
@@ -313,6 +313,7 @@ export class Game {
 
   private teleport([x, z]: [number, number]): void {
     this.tx = x; this.tz = z; this.fx = x + 0.5; this.fz = z + 0.5;
+    this.onEnterTile();
   }
 
   /* ---------- movement ---------- */
@@ -351,6 +352,13 @@ export class Game {
     if (t.type === "mob") { if (!t.dead) { this.act = { kind: "fight", mob: t }; this.atkCd = 1; t.target = true; } return; }
     if (t.type === "station") {
       if (t.kind === "bank") return this.deposit();
+      if (t.link) {
+        this.hud.message(t.kind === "cave_entrance" ? "Du kliver in i mörkret. Det luktar fukt och gammal sten." : "Du klättrar upp mot dagsljuset.");
+        for (const m of this.mobs) m.target = false;
+        this.act = null; this.path = [];
+        this.teleport(this.world.findFree(t.link[0], t.link[1], 3) ?? t.link);
+        return;
+      }
       const recipe = this.recipeFor(t);
       if (!recipe) { this.hud.message(STATION_EMPTY[t.kind] ?? "Du har inget att göra här.", "warn"); return; }
       this.hud.message(STATION_START[t.kind] ?? "");
@@ -359,7 +367,7 @@ export class Game {
     }
     const d = t.def;
     if (t.depleted) { this.hud.message(t.kind === "tree" || t.kind === "oak" ? "Det finns inget kvar att hugga här." : "Stenen är tom just nu.", "warn"); return; }
-    if (this.level(d.skill) < d.level) { this.hud.message(`Du behöver nivå ${d.level} i ${SKILLS[d.skill].name} för det här.`, "warn"); return; }
+    if (this.level(d.skill) < d.level) { this.hud.message(`Du behöver level ${d.level} i ${SKILLS[d.skill].name} för det här.`, "warn"); return; }
     if (!this.freeSlots()) { this.hud.message("Din packning är full.", "warn"); return; }
     this.hud.message(d.start);
     this.act = { kind: "gather", node: t }; this.tickWait = 1;
@@ -489,7 +497,7 @@ export class Game {
     this.arrows = this.arrows.filter(a => {
       a.t += dt;
       if (a.t < 0) return true;
-      const to = new THREE.Vector3(a.mob.fx, this.world.heightAt(a.mob.fx, a.mob.fz) + (a.mob.def.look === "rat" ? 0.3 : 0.8), a.mob.fz);
+      const to = new THREE.Vector3(a.mob.fx, this.world.heightAt(a.mob.fx, a.mob.fz) + MOB_HEIGHT[a.mob.def.look] * 0.55, a.mob.fz);
       const dur = 0.12 + a.from.distanceTo(to) * 0.035, k = Math.min(1, a.t / dur);
       const p = a.from.clone().lerp(to, k); p.y += Math.sin(k * Math.PI) * a.from.distanceTo(to) * 0.06;
       a.mesh.visible = true;
@@ -561,7 +569,7 @@ export class Game {
       return;
     }
     const pd = Math.hypot(m.x - this.tx, m.z - this.tz);
-    if (!m.target && d.aggressive && pd <= 3 && this.combatLevel() < 20) { m.target = true; this.hud.message(`${d.name}en anfaller dig!`, "warn"); }
+    if (!m.target && d.aggressive && pd <= 3 && this.combatLevel() < d.level * 2) { m.target = true; this.hud.message(`${d.the[0].toUpperCase()}${d.the.slice(1)} anfaller dig!`, "warn"); }
     if (m.target) {
       if (Math.hypot(m.x - m.home[0], m.z - m.home[1]) > 12 || pd > 14) { m.target = false; return; }
       if (!this.adjacent(m.x, m.z)) {
@@ -644,11 +652,11 @@ export class Game {
     el.style.cursor = "pointer";
     if (t.type === "mob") {
       const cl = this.combatLevel(), col = t.def.level > cl ? "#ff6a5a" : t.def.level < cl ? "#7fdc5a" : "#f3e27a";
-      this.hud.hover(`<span class="verb">Anfall</span> <span class="obj" style="color:#f3e27a">${t.def.name}</span> <span style="color:${col}">(nivå ${t.def.level})</span>`);
+      this.hud.hover(`<span class="verb">Anfall</span> <span class="obj" style="color:#f3e27a">${t.def.name}</span> <span style="color:${col}">(level ${t.def.level})</span>`);
     } else if (t.type === "npc") this.hud.hover(`<span class="verb">Prata med</span> <span class="obj" style="color:#f3e27a">${t.def.name}</span>`);
     else if (t.type === "station") this.hud.hover(`<span class="verb">${t.def.verb}</span> <span class="obj">${t.def.name}</span>`);
     else {
-      const d = t.def, req = this.level(d.skill) < d.level ? ` <span class="req">(kräver nivå ${d.level})</span>` : "";
+      const d = t.def, req = this.level(d.skill) < d.level ? ` <span class="req">(kräver level ${d.level})</span>` : "";
       this.hud.hover(`<span class="verb">${t.depleted ? "Undersök" : d.verb}</span> <span class="obj">${t.depleted ? d.depletedName ?? d.name : d.name}</span>${req}`);
     }
   }
@@ -711,7 +719,7 @@ export class Game {
     const out: PlateInfo[] = [];
     this.mobs.forEach((m, i) => {
       if (m.dead || !near(m.fx, m.fz)) return;
-      const y = m.group.position.y + (m.def.look === "rat" ? 0.95 : 1.5);
+      const y = m.group.position.y + MOB_HEIGHT[m.def.look] + 0.22;
       out.push({ key: "m" + i, at: new THREE.Vector3(m.fx, y, m.fz), kind: "enemy", name: m.def.name, level: m.def.level, aggressive: m.def.aggressive });
     });
     this.npcs.forEach((n, i) => {
@@ -724,6 +732,7 @@ export class Game {
   private onEnterTile(): void {
     const r = this.world.regionAt(this.tx, this.tz);
     if (r) this.hud.region(r.def.name);
+    this.gfx.setCave(!!r?.def.cave);
   }
 
   private animatePlayer(dt: number, moving: boolean): void {
@@ -801,7 +810,7 @@ export class Game {
       m.hit.position.set(m.fx, y + 0.8, m.fz);
       m.showBar = Math.max(0, m.showBar - dt);
       m.bar.group.visible = m.target || m.showBar > 0 || m.hp < m.def.hp;
-      if (m.bar.group.visible) m.bar.set(m.hp / m.def.hp, new THREE.Vector3(m.fx, y + (m.def.look === "rat" ? 0.75 : 1.25), m.fz), cam);
+      if (m.bar.group.visible) m.bar.set(m.hp / m.def.hp, new THREE.Vector3(m.fx, y + MOB_HEIGHT[m.def.look], m.fz), cam);
     }
     if (this.marker.visible) {
       this.markerT += dt;

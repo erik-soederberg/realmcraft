@@ -31,7 +31,7 @@ export class NamePlates {
         p.sig = sig;
         p.el.className = `plate ${e.kind}${e.aggressive ? " aggr" : ""}`;
         p.el.innerHTML = e.kind === "enemy"
-          ? `<span>${esc(e.name)}</span><span class="lv ${tier}">Nivå ${e.level}</span>`
+          ? `<span>${esc(e.name)}</span><span class="lv ${tier}">Level ${e.level}</span>`
           : `<span>${esc(e.name)}</span>`;
       }
       p.el.style.display = "";

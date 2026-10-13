@@ -20,5 +20,5 @@ export const GOALS: GoalDef[] = [
   { id: "sword", text: "Smid ett bronssvärd på städet", target: 1, value: s => s.made.bronze_sword ?? 0 },
   { id: "rats3", text: "Besegra 3 jätteråttor", target: 3, value: s => s.kills.rat ?? 0 },
   { id: "oak1", text: "Hugg en ek", target: 1, value: s => s.gathered.oak ?? 0 },
-  { id: "total50", text: "Nå totalnivå 50", target: 50, value: total },
+  { id: "total50", text: "Nå total level 50", target: 50, value: total },
 ];

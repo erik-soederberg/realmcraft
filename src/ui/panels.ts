@@ -75,11 +75,11 @@ export class Panels {
     const rows = (Object.keys(SKILLS) as SkillId[]).map(k => {
       const xp = s.xp[k], l = levelForXp(xp), lo = XP_TABLE[l], hi = XP_TABLE[Math.min(99, l + 1)];
       const pct = l >= 99 ? 100 : Math.round(((xp - lo) / (hi - lo)) * 100);
-      const left = l >= 99 ? "max" : `${(hi - Math.floor(xp)).toLocaleString("sv-SE")} kvar till nivå ${l + 1}`;
+      const left = l >= 99 ? "max" : `${(hi - Math.floor(xp)).toLocaleString("sv-SE")} kvar till level ${l + 1}`;
       return `<div class="skill"><div class="ic">${SKILL_ICON[k]}</div><div class="nm">${SKILLS[k].name}</div><div class="lv">${l}<small>/99</small></div><div class="bar"><i style="width:${pct}%"></i></div><div class="xp">${Math.floor(xp).toLocaleString("sv-SE")} XP · ${left}</div></div>`;
     }).join("");
     $("pane-skills").innerHTML = rows
-      + `<div class="total"><span>Totalnivå</span><b>${this.game.totalLevel()}</b></div><div class="total"><span>Stridsnivå</span><b>${this.game.combatLevel()}</b></div>`;
+      + `<div class="total"><span>Total level</span><b>${this.game.totalLevel()}</b></div><div class="total"><span>Combat level</span><b>${this.game.combatLevel()}</b></div>`;
   }
 
   private renderEquip(): void {

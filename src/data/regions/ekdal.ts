@@ -15,6 +15,8 @@ export const EKDAL: RegionDef = {
     { type: "path", points: [[24, 24], [18, 30]] },
     { type: "path", points: [[24, 24], [30, 40]] },
     { type: "path", points: [[24, 24], [15, 16]] },
+    { type: "path", points: [[24, 24], [47, 23]] },
+    { type: "path", points: [[30, 40], [26, 47]] },
   ],
   forest: { threshold: 0.55, density: 0.42, oakChance: 0.1, scatter: 0.035, clearings: [[24, 24, 5], [16, 16, 2.5]] },
   stations: [

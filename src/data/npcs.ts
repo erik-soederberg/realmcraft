@@ -110,6 +110,34 @@ export const NPCS: NpcDef[] = [
       { lines: ["Skogen är lugnare nu. Men lugn varar aldrig länge."] },
     ],
   },
+  {
+    id: "stina",
+    name: "Gruvfogden Stina",
+    look: { skin: "#c99a78", shirt: "#5a4a32", trousers: "#2e2a24", hair: "#7a5a3a", hairStyle: "ponytail", apron: "#3a3026" },
+    quests: ["spider_cave"],
+    dialogue: [
+      {
+        when: [{ quest: "spider_cave", stage: "not_started" }],
+        lines: ["Hör du dem? Det skrapar därinne om nätterna.", "Spindlar, stora som hundar, har tagit Svartgrottan. Ingen av mina gruvarbetare vågar gå in."],
+        options: [
+          { text: "Jag rensar grottan.", actions: [{ startQuest: "spider_cave" }], reply: ["Fem av dem borde räcka för att vi ska kunna börja bryta igen. Ta med mat, och gå inte för långt in. Längst in bor något större."] },
+          { text: "Jag är inte redo än.", reply: ["Klokt. Kom tillbaka när du kan hålla en sköld uppe."] },
+        ],
+      },
+      {
+        when: [{ quest: "spider_cave", stage: "hunt" }, { killsSinceStart: { quest: "spider_cave", mob: "spider", count: 5 } }],
+        lines: ["Det är tyst därinne nu. Var det du?"],
+        options: [
+          { text: "Fem spindlar färre.", actions: [{ completeQuest: "spider_cave" }], reply: ["Då öppnar vi gruvan i morgon. Ta den här järnskölden, den har räddat mig mer än en gång."] },
+        ],
+      },
+      {
+        when: [{ quest: "spider_cave", stage: "hunt" }],
+        lines: ["Grottöppningen ligger vid stenbrottet, bara en bit österut. Fem spindlar, sedan pratar vi."],
+      },
+      { lines: ["Längst in i grottan bor ett troll. Om du någonsin vill pröva dig själv, så vet du var det finns."] },
+    ],
+  },
 ];
 
 export const NPC_BY_ID: Record<string, NpcDef> = Object.fromEntries(NPCS.map(n => [n.id, n]));

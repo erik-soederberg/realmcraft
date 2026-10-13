@@ -94,7 +94,7 @@ export class QuestEngine {
       else if ("killsSinceStart" in x) {
         const k = x.killsSinceStart, have = (s.kills[k.mob] ?? 0) - (s.questStart[k.quest]?.[k.mob] ?? 0);
         out.push({ label: `${MOBS[k.mob].plural} besegrade`, have: Math.min(k.count, have), need: k.count });
-      } else if ("level" in x) out.push({ label: `Nivå i ${SKILLS[x.level.skill].name}`, have: Math.min(x.level.min, levelForXp(s.xp[x.level.skill])), need: x.level.min });
+      } else if ("level" in x) out.push({ label: `Level i ${SKILLS[x.level.skill].name}`, have: Math.min(x.level.min, levelForXp(s.xp[x.level.skill])), need: x.level.min });
     }
     return out;
   }

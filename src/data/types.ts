@@ -50,7 +50,7 @@ export interface EquipStats {
 }
 
 export type ResourceKind = "tree" | "oak" | "copper" | "tin" | "iron" | "fish";
-export type StationKind = "bank" | "furnace" | "anvil" | "range";
+export type StationKind = "bank" | "furnace" | "anvil" | "range" | "cave_entrance" | "cave_exit";
 
 export interface ResourceDef {
   name: string;
@@ -89,7 +89,7 @@ export interface MobDef {
   /** Experience for the kill, split between the weapon skill, Hälsa and Sköld. */
   xp: number;
   aggressive: boolean;
-  look: "rat" | "imp" | "wolf";
+  look: "rat" | "imp" | "wolf" | "bear" | "spider" | "bandit" | "troll";
 }
 
 /* ---------- quests & dialogue ---------- */
@@ -167,7 +167,10 @@ export type RegionFeature =
   | { type: "lake"; x: number; z: number; r: number }
   | { type: "river"; x: number; z0: number; z1: number; width: number; wiggle: number }
   | { type: "quarry"; x: number; z: number; r: number }
-  | { type: "path"; points: [number, number][] };
+  | { type: "path"; points: [number, number][] }
+  /** Cave regions only: open floor carved out of the rock. */
+  | { type: "chamber"; x: number; z: number; r: number }
+  | { type: "tunnel"; points: [number, number][]; width: number };
 
 export interface RegionDef {
   id: string;
@@ -177,8 +180,11 @@ export interface RegionDef {
   size: [number, number];
   spawn?: [number, number];
   features: RegionFeature[];
+  /** Underground: the region starts as solid rock, chambers and tunnels are carved out, and it is lit by torchlight. */
+  cave?: boolean;
   forest: { threshold: number; density: number; oakChance: number; scatter: number; clearings: [number, number, number][] };
-  stations: { kind: StationKind; at: [number, number]; facing?: number }[];
+  /** `link` is where a cave entrance or exit leads, as region id and a tile local to that region. */
+  stations: { kind: StationKind; at: [number, number]; facing?: number; link?: { region: string; at: [number, number] } }[];
   resources: { kind: ResourceKind; at: [number, number] }[];
   fishing: { near: [number, number]; count: number };
   mobs: { mob: MobId; at: [number, number] }[];

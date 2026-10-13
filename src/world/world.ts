@@ -1,7 +1,7 @@
 import { fbm, hash, smooth } from "../core/noise";
 import type { RegionDef } from "../data/types";
 
-export enum Tile { Grass = 0, Water = 1, Sand = 2, Path = 3, Dirt = 4, Void = 255 }
+export enum Tile { Grass = 0, Water = 1, Sand = 2, Path = 3, Dirt = 4, Rock = 5, Void = 255 }
 export const WATER_LEVEL = -0.14;
 
 /** One authored area of the world with its own tile grid. */
@@ -19,7 +19,7 @@ export class Region {
     this.tiles = new Uint8Array(this.w * this.h);
     this.blocked = new Uint8Array(this.w * this.h);
     generateTiles(this);
-    for (let i = 0; i < this.tiles.length; i++) if (this.tiles[i] === Tile.Water) this.blocked[i] = 1;
+    for (let i = 0; i < this.tiles.length; i++) if (this.tiles[i] === Tile.Water || this.tiles[i] === Tile.Rock) this.blocked[i] = 1;
   }
   contains(x: number, z: number): boolean {
     return x >= this.ox && z >= this.oz && x < this.ox + this.w && z < this.oz + this.h;
@@ -34,6 +34,7 @@ export class Region {
 function generateTiles(r: Region): void {
   const { w, h, tiles, def } = r;
   const set = (x: number, z: number, t: Tile) => { if (x >= 0 && z >= 0 && x < w && z < h) tiles[z * w + x] = t; };
+  if (def.cave) return carveCave(r);
   for (let z = 0; z < h; z++) for (let x = 0; x < w; x++) {
     const wx = x + r.ox, wz = z + r.oz;
     for (const f of def.features) {
@@ -60,6 +61,23 @@ function generateTiles(r: Region): void {
         const t = i / steps, wob = Math.sin(t * Math.PI * 2) * 1.2;
         const x = Math.round(ax + (bx - ax) * t + wob * 0.6), z = Math.round(az + (bz - az) * t - wob * 0.4);
         for (const dx of [0, 1]) if (!water(x + dx, z)) set(x + dx, z, Tile.Path);
+      }
+    }
+  }
+}
+
+/** Fills a cave region with rock, then carves its chambers and tunnels into dirt floor with ragged edges. */
+function carveCave(r: Region): void {
+  const { w, h, tiles, def } = r;
+  tiles.fill(Tile.Rock);
+  for (let z = 1; z < h - 1; z++) for (let x = 1; x < w - 1; x++) {
+    const wx = x + r.ox, wz = z + r.oz, rag = (fbm(wx * 0.35 + 5, wz * 0.35) - 0.5) * 2.4;
+    for (const f of def.features) {
+      if (f.type === "chamber" && Math.hypot(x - f.x, z - f.z) + rag < f.r) tiles[z * w + x] = Tile.Dirt;
+      if (f.type === "tunnel") for (let p = 0; p + 1 < f.points.length; p++) {
+        const [ax, az] = f.points[p], [bx, bz] = f.points[p + 1], dx = bx - ax, dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+        if (Math.hypot(x - (ax + dx * t), z - (az + dz * t)) + rag * 0.4 < f.width) tiles[z * w + x] = Tile.Dirt;
       }
     }
   }
@@ -102,7 +120,8 @@ export class World {
     const t = this.tile(x, z);
     const hills = fbm(x * 0.09 + 3, z * 0.09 + 11) * 1.3 + fbm(x * 0.3, z * 0.3) * 0.25;
     v = t === Tile.Water ? -0.75 : t === Tile.Sand ? hills * 0.15 : t === Tile.Path ? 0.05 + hills * 0.7
-      : t === Tile.Dirt ? 0.35 + hills * 0.8 + fbm(x * 0.45, z * 0.45) * 0.5 : 0.08 + hills;
+      : t === Tile.Dirt ? 0.35 + hills * 0.8 + fbm(x * 0.45, z * 0.45) * 0.5
+      : t === Tile.Rock ? 2.4 + fbm(x * 0.5 + 17, z * 0.5) * 1.6 : 0.08 + hills;
     this.baseCache.set(key, v);
     return v;
   }

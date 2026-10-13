@@ -36,6 +36,16 @@ export const QUESTS: QuestDef[] = [
     ],
     rewards: { xp: { onehand: 500, bow: 500, shield: 400, hp: 300 }, items: ["bronze_shield"] },
   },
+  {
+    id: "spider_cave",
+    name: "Spindlarna i Svartgrottan",
+    giver: "stina",
+    summary: "Gruvfogden Stina på Stenhöjden har fått stänga gruvan sedan spindlar tog över Svartgrottan.",
+    steps: [
+      { id: "hunt", log: "Besegra 5 grottspindlar i Svartgrottan och berätta det för Stina.", ready: [{ killsSinceStart: { quest: "spider_cave", mob: "spider", count: 5 } }] },
+    ],
+    rewards: { xp: { mining: 400, shield: 300, hp: 300 }, items: ["iron_shield"] },
+  },
 ];
 
 export const QUEST_BY_ID: Record<string, QuestDef> = Object.fromEntries(QUESTS.map(q => [q.id, q]));
