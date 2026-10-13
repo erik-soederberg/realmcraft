@@ -4,8 +4,8 @@ import type { RegionDef } from "../types";
 export const STENHOJDEN: RegionDef = {
   id: "stenhojden",
   name: "Stenhöjden",
-  origin: [48, 0],
-  size: [48, 48],
+  origin: [72, 0],
+  size: [48, 72],
   features: [
     { type: "quarry", x: 31, z: 13, r: 9 },
     { type: "quarry", x: 10, z: 37, r: 5 },

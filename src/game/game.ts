@@ -14,7 +14,7 @@ import type { EquipSlot, ItemId, SkillId } from "../data/types";
 import { CameraRig, bindPointer } from "../engine/controls";
 import { GLOW, HpBar, heldItems, humanoid, type Humanoid } from "../entities/models";
 import { poseHuman, type PoseState } from "../entities/animate";
-import { MOB_HEIGHT, Mob, Npc, ResourceNode, Station, populateRegion, type Interactable } from "../entities/entities";
+import { MOB_HEIGHT, Mob, Npc, ResourceNode, Station, populateRegion, type House, type Interactable } from "../entities/entities";
 import { DialogueBox, type DialogueChoice } from "../ui/dialogue";
 import { $, Hud } from "../ui/hud";
 import { Minimap } from "../ui/minimap";
@@ -69,6 +69,7 @@ export class Game {
   private bar: HpBar;
   private marker: THREE.Group;
   private markerT = 9;
+  private houses: House[] = [];
   private arrows: { mesh: THREE.Group; from: THREE.Vector3; mob: Mob; t: number; land: () => void }[] = [];
   private hoverAt: [number, number] | null = null;
   private hoverDirty = false;
@@ -83,7 +84,7 @@ export class Game {
       this.terrains.push(t);
       this.grounds.push(t.ground);
       const c = populateRegion(this.world, region, scene);
-      this.resources.push(...c.resources); this.stations.push(...c.stations); this.mobs.push(...c.mobs); this.npcs.push(...c.npcs);
+      this.houses.push(...c.houses); this.resources.push(...c.resources); this.stations.push(...c.stations); this.mobs.push(...c.mobs); this.npcs.push(...c.npcs);
     }
     for (const t of this.everything()) this.hitboxes.push(t.hit);
     const first = this.world.regions[0];
@@ -249,6 +250,9 @@ export class Game {
       if (clash) { this.giveItem(this.s.equip[clash]!); delete this.s.equip[clash]; }
       this.hud.message(`Du ${slot === "weapon" ? "håller nu" : "tar på dig"} ${it.name.toLowerCase()}.${clash === "shield" ? " Du behöver båda händerna, så skölden åker ner i packningen." : clash === "weapon" ? " Skölden behöver en hand, så vapnet åker ner i packningen." : ""}`);
       this.refreshGear();
+    } else if (it.quest) {
+      this.hud.message(it.quest);
+      return;
     } else {
       this.s.inv[i] = null;
       this.hud.message(`Du slänger ${it.name.toLowerCase()}.`);
@@ -779,6 +783,13 @@ export class Game {
 
   private animateWorld(dt: number): void {
     this.flyArrows(dt);
+    // Cut a house open while the player is inside it: lift the roof off and lower the walls.
+    for (const h of this.houses) {
+      const inside = this.fx >= h.x0 && this.fx < h.x1 + 1 && this.fz >= h.z0 && this.fz < h.z1 + 1;
+      h.model.roof.visible = !inside;
+      const want = inside ? 0.28 : 1, sy = h.model.walls.scale.y;
+      h.model.walls.scale.y = sy + (want - sy) * Math.min(1, dt * 8);
+    }
     for (const t of this.terrains) t.update(this.clock);
     for (const n of this.resources) n.model.update?.(this.clock);
     GLOW.emissiveIntensity = 2.0 + Math.sin(this.clock * 9) * 0.25 + Math.sin(this.clock * 23) * 0.15;

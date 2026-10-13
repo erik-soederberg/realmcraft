@@ -2,7 +2,7 @@ import "./ui/style.css";
 import { Game } from "./game/game";
 import { $ } from "./ui/hud";
 
-const VERSION = "0.11";
+const VERSION = "0.12";
 
 const game = new Game($("view"));
 $("version").textContent = `Prototyp ${VERSION}`;

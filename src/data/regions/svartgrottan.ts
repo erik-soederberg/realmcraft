@@ -8,7 +8,7 @@ import type { RegionDef } from "../types";
 export const SVARTGROTTAN: RegionDef = {
   id: "svartgrottan",
   name: "Svartgrottan",
-  origin: [120, 0],
+  origin: [200, 0],
   size: [40, 40],
   cave: true,
   features: [

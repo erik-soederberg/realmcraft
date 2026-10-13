@@ -10,6 +10,7 @@ const TILE_COLORS: Record<number, THREE.Color> = {
   [Tile.Dirt]: new THREE.Color("#4c443b"),
   [Tile.Water]: new THREE.Color("#3a3a2e"),
   [Tile.Rock]: new THREE.Color("#3b3934"),
+  [Tile.Floor]: new THREE.Color("#4a3a28"),
   [Tile.Void]: new THREE.Color("#384422"),
 };
 

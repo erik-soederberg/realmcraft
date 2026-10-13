@@ -5,7 +5,7 @@ import { NPC_BY_ID } from "../data/npcs";
 import { RESOURCES, STATIONS } from "../data/resources";
 import type { MobDef, MobId, NpcDef, ResourceDef, ResourceKind, StationDef, StationKind } from "../data/types";
 import { Tile, WATER_LEVEL, type Region, type World } from "../world/world";
-import { HpBar, QuestMarker, humanoid, mobModel, resourceModel, stationModel, type Humanoid, type ResourceModel } from "./models";
+import { HpBar, QuestMarker, buildingModel, humanoid, type BuildingModel, mobModel, resourceModel, stationModel, type Humanoid, type ResourceModel } from "./models";
 
 const HIT_GEO = new THREE.BoxGeometry(1, 1.8, 1);
 const HIT_MAT = new THREE.MeshBasicMaterial({ visible: false });
@@ -106,7 +106,11 @@ export class Npc {
   }
 }
 
+/** A house on the map, with the world tiles it covers. */
+export interface House { name: string; x0: number; z0: number; x1: number; z1: number; model: BuildingModel }
+
 export interface RegionContent {
+  houses: House[];
   resources: ResourceNode[];
   stations: Station[];
   mobs: Mob[];
@@ -116,7 +120,13 @@ export interface RegionContent {
 /** Places everything a region definition describes: stations, NPCs, resources, forest, fishing spots and monsters. */
 export function populateRegion(world: World, region: Region, scene: THREE.Scene): RegionContent {
   const d = region.def, ox = region.ox, oz = region.oz;
-  const out: RegionContent = { resources: [], stations: [], mobs: [], npcs: [] };
+  const out: RegionContent = { houses: [], resources: [], stations: [], mobs: [], npcs: [] };
+  for (const b of d.buildings ?? []) {
+    const x0 = ox + b.at[0], z0 = oz + b.at[1];
+    const model = buildingModel(x0, z0, b.size[0], b.size[1], [ox + b.door[0], oz + b.door[1]], world.floorY(region, b));
+    scene.add(model.group);
+    out.houses.push({ name: b.name, x0, z0, x1: x0 + b.size[0] - 1, z1: z0 + b.size[1] - 1, model });
+  }
   for (const s of d.stations) {
     const st = new Station(s.kind, ox + s.at[0], oz + s.at[1], s.facing ?? 0, world, scene);
     const to = s.link && world.regions.find(r => r.def.id === s.link!.region);

@@ -2,7 +2,7 @@ import type { Interactable } from "../entities/entities";
 import { Tile, type World } from "../world/world";
 
 const COLORS: Record<number, string> = {
-  [Tile.Grass]: "#3f4a26", [Tile.Water]: "#24414a", [Tile.Sand]: "#8a7d5c", [Tile.Path]: "#6a5a45", [Tile.Dirt]: "#5a4f43", [Tile.Rock]: "#1c1a18",
+  [Tile.Grass]: "#3f4a26", [Tile.Water]: "#24414a", [Tile.Sand]: "#8a7d5c", [Tile.Path]: "#6a5a45", [Tile.Dirt]: "#5a4f43", [Tile.Rock]: "#1c1a18", [Tile.Floor]: "#7a5634",
 };
 const PX = 6, ZOOM = 1.7;
 

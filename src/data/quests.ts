@@ -7,6 +7,40 @@ import type { QuestDef } from "./types";
  */
 export const QUESTS: QuestDef[] = [
   {
+    id: "longhouse",
+    name: "Vägen till Långhuset",
+    giver: "ragnar",
+    turnIn: "ingrid",
+    summary: "Vakten Ragnar vill att du presenterar dig för byäldste Ingrid i Långhuset.",
+    steps: [
+      { id: "visit", log: "Följ vägen österut till Långhuset och prata med byäldste Ingrid därinne." },
+    ],
+    rewards: { exp: 150 },
+  },
+  {
+    id: "imp_camp",
+    name: "Vättelägret",
+    giver: "ingrid",
+    requires: [{ quest: "longhouse", stage: "done" }],
+    summary: "Vättar har slagit läger i skogen sydost om Långhuset och stjäl från byns förråd.",
+    steps: [
+      { id: "hunt", log: "Besegra 5 vättar i lägret sydost om Långhuset och berätta det för Ingrid.", ready: [{ killsSinceStart: { quest: "imp_camp", mob: "imp", count: 5 } }] },
+    ],
+    rewards: { exp: 300, xp: { onehand: 60, hp: 30 }, items: ["bronze_dagger"] },
+  },
+  {
+    id: "letter",
+    name: "Ett brev till Stenhöjden",
+    giver: "ingrid",
+    turnIn: "stina",
+    requires: [{ quest: "imp_camp", stage: "done" }],
+    summary: "Ingrid behöver få ett brev till gruvfogden Stina på Stenhöjden.",
+    steps: [
+      { id: "deliver", log: "Ta brevet österut till gruvfogden Stina på Stenhöjden.", ready: [{ hasItems: { letter: 1 } }] },
+    ],
+    rewards: { exp: 250 },
+  },
+  {
     id: "smith_bars",
     name: "Smedens tackor",
     giver: "arvid",

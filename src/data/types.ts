@@ -21,12 +21,15 @@ export type IconSpec =
   | { kind: "greatsword"; color: string }
   | { kind: "dagger"; color: string }
   | { kind: "bow"; color: string }
-  | { kind: "shield"; color: string; rim: string };
+  | { kind: "shield"; color: string; rim: string }
+  | { kind: "scroll"; color: string; seal: string };
 
 export interface ItemDef {
   name: string;
   icon: IconSpec;
   heal?: number;
+  /** Quest items cannot be thrown away; clicking one shows this instead. */
+  quest?: string;
   /** Worn or wielded: which slot it goes in and the bonuses it gives. */
   equip?: EquipStats;
 }
@@ -137,6 +140,10 @@ export interface QuestDef {
   summary: string;
   steps: QuestStep[];
   /** `exp` is character experience; `xp` goes to individual skills. */
+  /** Who the quest is handed in to, when it is not the giver. */
+  turnIn?: string;
+  /** The giver only offers the quest once these hold, for example an earlier quest being done. */
+  requires?: Condition[];
   rewards: { exp: number; xp?: Partial<Record<SkillId, number>>; items?: ItemId[] };
 }
 
@@ -151,6 +158,10 @@ export interface HumanLook {
   hood?: boolean;
   hairStyle?: HairStyle;
   beard?: boolean;
+  /** Mail shirt instead of cloth. */
+  chain?: boolean;
+  /** Cape colour; no cape when left out. */
+  cape?: string;
 }
 
 export interface NpcDef {
@@ -163,6 +174,16 @@ export interface NpcDef {
 }
 
 /* ---------- regions ---------- */
+
+export interface BuildingDef {
+  name: string;
+  /** North-west corner tile. */
+  at: [number, number];
+  /** Width (x) and depth (z) in tiles, walls included. */
+  size: [number, number];
+  /** The wall tile left open as the doorway. */
+  door: [number, number];
+}
 
 export type RegionFeature =
   | { type: "lake"; x: number; z: number; r: number }
@@ -181,6 +202,8 @@ export interface RegionDef {
   size: [number, number];
   spawn?: [number, number];
   features: RegionFeature[];
+  /** Houses: walls on the outer ring of tiles, a gap at `door`, a floor inside. Coordinates are local tiles. */
+  buildings?: BuildingDef[];
   /** Underground: the region starts as solid rock, chambers and tunnels are carved out, and it is lit by torchlight. */
   cave?: boolean;
   forest: { threshold: number; density: number; oakChance: number; scatter: number; clearings: [number, number, number][] };

@@ -461,3 +461,84 @@ export class QuestMarker {
     if (kind) { this.sprite.material.map = glyphTexture(kind, kind === "!" ? "#f3d23a" : "#c9c9c9"); this.sprite.material.needsUpdate = true; }
   }
 }
+
+/* ---------- buildings ---------- */
+
+const H = {
+  wall: mat("#8a7a62", { map: detailTex, bumpMap: detailTex, bumpScale: 1.2 }),
+  timber: mat("#3a2818", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }),
+  plank: mat("#5a4028", { map: detailTex, bumpMap: detailTex, bumpScale: 1 }),
+  thatch: mat("#5e4a2c", { map: detailTex, bumpMap: detailTex, bumpScale: 3, side: THREE.DoubleSide }),
+  cloth: mat("#6a1e18", { side: THREE.DoubleSide }),
+};
+
+export interface BuildingModel { group: THREE.Group; walls: THREE.Group; roof: THREE.Group }
+
+/**
+ * A timber-framed longhouse filling a footprint of w × d tiles whose north-west
+ * tile is (x0, z0). Walls run along the centres of the outer tiles with a gap
+ * at the door; the roof and walls are separate groups so the game can cut the
+ * house open while the player is inside.
+ */
+export function buildingModel(x0: number, z0: number, w: number, d: number, door: [number, number], floorY: number): BuildingModel {
+  const group = new THREE.Group(), walls = new THREE.Group(), roof = new THREE.Group();
+  group.position.set(x0, floorY, z0);
+  group.add(walls, roof);
+  const WALL_H = 2.2, T = 0.3;
+  const box = (parent: THREE.Object3D, m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); b.position.set(x, y, z); parent.add(b); return b;
+  };
+  // Floor planks across the whole inside.
+  box(group, H.plank, w - 1, 0.08, d - 1, w / 2, 0.04, d / 2);
+  // One wall side at a time, split at the doorway.
+  const lx = door[0] - x0 + 0.5, lz = door[1] - z0 + 0.5;
+  const side = (ax: number, az: number, bx: number, bz: number) => {
+    const horiz = az === bz, len = horiz ? bx - ax : bz - az;
+    const hasDoor = horiz ? Math.abs(lz - az) < 0.01 && lx > ax && lx < bx : Math.abs(lx - ax) < 0.01 && lz > az && lz < bz;
+    const pieces: [number, number][] = hasDoor ? [[0, (horiz ? lx - ax : lz - az) - 0.55], [(horiz ? lx - ax : lz - az) + 0.55, len]] : [[0, len]];
+    for (const [s0, s1] of pieces) {
+      const mid = (s0 + s1) / 2, l = s1 - s0 + T;
+      box(walls, H.wall, horiz ? l : T, WALL_H, horiz ? T : l, horiz ? ax + mid : ax, WALL_H / 2, horiz ? az : az + mid);
+      box(walls, H.timber, horiz ? l + 0.02 : T + 0.06, 0.14, horiz ? T + 0.06 : l + 0.02, horiz ? ax + mid : ax, WALL_H - 0.07, horiz ? az : az + mid);
+      box(walls, H.timber, horiz ? l + 0.02 : T + 0.06, 0.14, horiz ? T + 0.06 : l + 0.02, horiz ? ax + mid : ax, 0.07, horiz ? az : az + mid);
+    }
+    if (hasDoor) {
+      const dx = horiz ? lx : ax, dz = horiz ? az : lz;
+      box(walls, H.wall, horiz ? 1.1 : T, WALL_H - 1.75, horiz ? T : 1.1, dx, 1.75 + (WALL_H - 1.75) / 2, dz);
+      box(walls, H.timber, horiz ? 1.2 : T + 0.08, 0.16, horiz ? T + 0.08 : 1.2, dx, 1.75, dz);
+      for (const s of [-0.55, 0.55]) box(walls, H.timber, 0.14, 1.75, 0.14, horiz ? dx + s : dx, 0.875, horiz ? dz : dz + s);
+      const lamp = box(group, M.glow, 0.12, 0.16, 0.12, horiz ? dx + 0.8 : dx + (ax < w / 2 ? -0.3 : 0.3), 1.6, horiz ? dz + (az < d / 2 ? -0.3 : 0.3) : dz + 0.8);
+      lamp.userData.noShadow = true;
+    }
+  };
+  const W = w - 0.5, D = d - 0.5;
+  side(0.5, 0.5, W, 0.5); side(0.5, D, W, D); side(0.5, 0.5, 0.5, D); side(W, 0.5, W, D);
+  // Corner and mid posts.
+  for (const [px, pz] of [[0.5, 0.5], [W, 0.5], [0.5, D], [W, D], [w / 2, 0.5], [w / 2, D]]) box(walls, H.timber, 0.22, WALL_H + 0.1, 0.22, px, (WALL_H + 0.1) / 2, pz);
+  // Gabled thatch roof along the long axis, overhanging the walls.
+  const alongX = w >= d, span = (alongX ? D - 0.5 : W - 0.5) + 1.2, run = (alongX ? W - 0.5 : D - 0.5) + 1.2, rise = 1.5;
+  const slope = Math.hypot(span / 2, rise), ang = Math.atan2(rise, span / 2);
+  for (const s of [-1, 1]) {
+    const p = box(roof, H.thatch, alongX ? run : slope, 0.16, alongX ? slope : run, w / 2 + (alongX ? 0 : s * span / 4), WALL_H + rise / 2, d / 2 + (alongX ? s * span / 4 : 0));
+    if (alongX) p.rotation.x = s * ang; else p.rotation.z = -s * ang;
+  }
+  const ridge = box(roof, H.timber, alongX ? run + 0.1 : 0.2, 0.2, alongX ? 0.2 : run + 0.1, w / 2, WALL_H + rise + 0.05, d / 2);
+  ridge.castShadow = true;
+  // Gable ends.
+  const tri = new THREE.Shape([new THREE.Vector2(-span / 2 + 0.6, 0), new THREE.Vector2(span / 2 - 0.6, 0), new THREE.Vector2(0, rise - 0.3)]);
+  for (const end of [0.5, alongX ? W : D]) {
+    const g = new THREE.Mesh(new THREE.ShapeGeometry(tri), H.wall);
+    g.material = H.wall; (g.material as THREE.Material).side = THREE.DoubleSide;
+    if (alongX) { g.rotation.y = Math.PI / 2; g.position.set(end, WALL_H, d / 2); } else g.position.set(w / 2, WALL_H, end);
+    roof.add(g);
+  }
+  // Inside: a long table with benches and a banner.
+  const tx = w / 2, tz = d / 2;
+  box(group, H.timber, alongX ? 2.4 : 0.9, 0.08, alongX ? 0.9 : 2.4, tx - (alongX ? 0.6 : 0), 0.78, tz - (alongX ? 0 : 0.6));
+  for (const [ox, oz] of [[-1, -0.35], [1, -0.35], [-1, 0.35], [1, 0.35]]) box(group, H.timber, 0.08, 0.74, 0.08, tx - (alongX ? 0.6 : 0) + (alongX ? ox : oz), 0.37, tz - (alongX ? 0 : 0.6) + (alongX ? oz : ox));
+  for (const s of [-1, 1]) box(group, H.plank, alongX ? 2.2 : 0.3, 0.42, alongX ? 0.3 : 2.2, tx - (alongX ? 0.6 : 0) + (alongX ? 0 : s * 0.75), 0.21, tz - (alongX ? 0 : 0.6) + (alongX ? s * 0.75 : 0));
+  const banner = box(walls, H.cloth, alongX ? 0.9 : 0.02, 1.1, alongX ? 0.02 : 0.9, alongX ? tx : 0.5 + T / 2 + 0.02, 1.3, alongX ? 0.5 + T / 2 + 0.02 : tz);
+  banner.userData.noShadow = true;
+  castShadows(group);
+  return { group, walls, roof };
+}

@@ -4,8 +4,8 @@ import type { RegionDef } from "../types";
 export const MYRMARKEN: RegionDef = {
   id: "myrmarken",
   name: "Myrmarken",
-  origin: [0, 48],
-  size: [48, 48],
+  origin: [0, 72],
+  size: [72, 48],
   features: [
     { type: "lake", x: 12, z: 14, r: 6 },
     { type: "lake", x: 34, z: 30, r: 7 },

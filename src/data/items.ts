@@ -13,6 +13,7 @@ export const ITEMS = {
   c_shrimp: { name: "Räkor", heal: 3, icon: { kind: "fish", color: "#d9662f", belly: 9 } },
   c_anchovy: { name: "Ansjovis", heal: 4, icon: { kind: "fish", color: "#a8743c", belly: 6 } },
   burnt: { name: "Bränd fisk", icon: { kind: "fish", color: "#2b2420", belly: 8 } },
+  letter: { name: "Brev till Stina", quest: "Brevet är förseglat med byns sigill. Det ska till gruvfogden Stina på Stenhöjden.", icon: { kind: "scroll", color: "#e2d3a8", seal: "#a4281c" } },
   bones: { name: "Ben", icon: { kind: "bones" } },
   raw_meat: { name: "Rått kött", icon: { kind: "meat", color: "#c8505a" } },
   meat: { name: "Stekt kött", heal: 6, icon: { kind: "meat", color: "#8a4a24" } },

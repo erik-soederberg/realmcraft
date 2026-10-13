@@ -70,7 +70,7 @@ export class QuestEngine {
         for (const [sk, xp] of Object.entries(q.rewards.xp ?? {})) { this.hooks.xp(sk as SkillId, xp ?? 0); parts.push(`${xp} XP i ${SKILLS[sk as SkillId].name}`); }
         for (const it of q.rewards.items ?? []) { if (!this.hooks.give(it)) s.bank[it] = (s.bank[it] ?? 0) + 1; parts.push(ITEMS[it].name.toLowerCase()); }
         this.hooks.message(`Uppdrag klart: ${q.name}. Belöning: ${parts.join(", ")}.`, "lvl");
-        this.hooks.toast("Uppdrag klart", q.name);
+        this.hooks.toast("Uppdrag klart", `${q.name} · +${q.rewards.exp} XP`);
         events.emit("quest", { quest: q.id });
       }
     }
@@ -79,11 +79,12 @@ export class QuestEngine {
   /** "!" when the NPC has a quest to give, "?" when one can be handed in. */
   marker(npc: NpcDef): "!" | "?" | null {
     let mark: "!" | "?" | null = null;
-    for (const id of npc.quests) {
-      const q = QUEST_BY_ID[id]; if (!q) continue;
-      const st = this.stage(id);
-      if (st === NOT_STARTED) mark = mark ?? "!";
-      else if (st !== DONE) { const step = q.steps.find(x => x.id === st); if (step && this.checkAll(step.ready)) return "?"; }
+    for (const q of QUESTS) {
+      const st = this.stage(q.id);
+      if (st === NOT_STARTED) { if (npc.quests.includes(q.id) && this.checkAll(q.requires)) mark = mark ?? "!"; continue; }
+      if (st === DONE || (q.turnIn ?? q.giver) !== npc.id) continue;
+      const step = q.steps.find(x => x.id === st);
+      if (step && this.checkAll(step.ready)) return "?";
     }
     return mark;
   }
@@ -103,7 +104,7 @@ export class QuestEngine {
 
   /** Everything the quest journal shows for one quest. */
   journal(q: QuestDef) {
-    const st = this.stage(q.id), giver = NPCS.find(n => n.id === q.giver);
+    const st = this.stage(q.id), giver = NPCS.find(n => n.id === q.giver), turnIn = NPCS.find(n => n.id === (q.turnIn ?? q.giver));
     const idx = st === DONE ? q.steps.length : q.steps.findIndex(x => x.id === st);
     const status: "active" | "done" | "available" = st === DONE ? "done" : st === NOT_STARTED ? "available" : "active";
     const current = status === "active" ? q.steps[idx] : undefined;
@@ -113,7 +114,7 @@ export class QuestEngine {
       ...(q.rewards.items ?? []).map(it => ITEMS[it].name),
     ];
     return {
-      id: q.id, name: q.name, summary: q.summary, status, giver: giver?.name ?? "",
+      id: q.id, name: q.name, summary: q.summary, status, giver: giver?.name ?? "", turnIn: turnIn?.name ?? "",
       done: q.steps.slice(0, Math.max(0, idx)).map(x => x.log),
       current: current?.log, ready: current ? this.checkAll(current.ready) : false,
       progress: current ? this.progress(current.ready) : [],

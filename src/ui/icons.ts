@@ -23,6 +23,8 @@ function render(i: IconSpec): string {
       return `<svg viewBox="0 0 40 40"><path d="M27 10 L31 9 L30 13 L19 24 L16 21 Z" fill="${i.color}" stroke="#2b2118" stroke-width="1.2"/><rect x="11" y="20" width="10" height="3.5" rx="1" fill="#4a3b2c" transform="rotate(45 16 22)"/><rect x="9" y="25" width="4" height="7" rx="1.5" fill="#6a4a2c" transform="rotate(45 11 28.5)"/></svg>`;
     case "bow":
       return `<svg viewBox="0 0 40 40"><path d="M10 5 Q32 20 10 35" fill="none" stroke="${i.color}" stroke-width="3.2" stroke-linecap="round"/><path d="M10 5 Q32 20 10 35" fill="none" stroke="#2b1a0c" stroke-width="0.8" opacity=".5"/><path d="M10 5 L10 35" stroke="#e8e0cc" stroke-width="1"/><rect x="18.5" y="17" width="3" height="6" rx="1" fill="#3a2414"/></svg>`;
+    case "scroll":
+      return `<svg viewBox="0 0 40 40"><rect x="9" y="9" width="22" height="22" rx="2" fill="${i.color}" stroke="#5a4626" stroke-width="1.3" transform="rotate(-12 20 20)"/><path d="M14 15 H26 M14 19 H26 M14 23 H22" stroke="#6a5634" stroke-width="1.2" transform="rotate(-12 20 20)"/><circle cx="25" cy="27" r="4" fill="${i.seal}" stroke="#3a0e08"/></svg>`;
     case "sword":
       return `<svg viewBox="0 0 40 40"><path d="M30 6 L34 6 L34 10 L16 28 L12 24 Z" fill="${i.color}" stroke="#2b2118" stroke-width="1.2"/><rect x="8" y="23" width="12" height="4" rx="1" fill="#4a3b2c" transform="rotate(45 14 25)"/><rect x="6" y="28" width="4" height="7" rx="1.5" fill="#6a4a2c" transform="rotate(45 8 31)"/></svg>`;
   }

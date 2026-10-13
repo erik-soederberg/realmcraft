@@ -64,7 +64,7 @@ export class Panels {
   render(): void { this.renderInv(); this.renderEquip(); this.renderSkills(); this.renderQuests(); this.renderBank(); this.renderTracker(); if (this.journalId) this.renderJournal(); }
 
   private renderInv(): void {
-    const verb = (id: ItemId) => { const it = itemDef(id); return it.heal ? "Ät" : it.equip ? "Ta på" : "Släng"; };
+    const verb = (id: ItemId) => { const it = itemDef(id); return it.heal ? "Ät" : it.equip ? "Ta på" : it.quest ? "Läs" : "Släng"; };
     $("inv").innerHTML = this.game.s.inv.map((id, i) => id
       ? `<button class="slot full" data-i="${i}" title="${verb(id)} ${ITEMS[id].name}" aria-label="${verb(id)} ${ITEMS[id].name}">${itemIcon(id)}</button>`
       : `<div class="slot"></div>`).join("");
@@ -102,7 +102,7 @@ export class Panels {
     const label = { done: "Klart", active: "Pågår", available: "Ej påbörjat" };
     const order = { active: 0, available: 1, done: 2 };
     const quests = QUESTS.map(q => this.game.quests.journal(q)).sort((a, b) => order[a.status] - order[b.status]).map(j => {
-      const line = j.status === "active" ? (j.ready ? `Klart att lämna in hos ${j.giver.split(" ").pop()}.` : j.current ?? "") : j.summary;
+      const line = j.status === "active" ? (j.ready ? `Klart att lämna in hos ${j.turnIn.split(" ").pop()}.` : j.current ?? "") : j.summary;
       return `<button class="quest ${j.status}" data-quest="${j.id}"><h4>${esc(j.name)}<span>${label[j.status]}</span></h4><p>${esc(line)}</p></button>`;
     }).join("");
     const goals = GOALS.map(g => {
@@ -119,7 +119,7 @@ export class Panels {
     const el = $("qtrack");
     el.hidden = !active.length;
     el.innerHTML = active.map(j => {
-      const prog = j.ready ? `<i class="ok">Lämna in hos ${esc(j.giver)}</i>` : j.progress.map(p => `<i>${esc(p.label)} ${p.have}/${p.need}</i>`).join("");
+      const prog = j.ready ? `<i class="ok">Lämna in hos ${esc(j.turnIn)}</i>` : j.progress.map(p => `<i>${esc(p.label)} ${p.have}/${p.need}</i>`).join("");
       return `<button data-quest="${j.id}" title="Öppna uppdraget"><b>${esc(j.name)}</b>${prog}</button>`;
     }).join("");
   }
@@ -145,7 +145,7 @@ export class Panels {
     if (j.current) {
       body += `<p class="jnow">${esc(j.current)}</p>`;
       if (j.progress.length) body += `<ul class="jprog">${j.progress.map(p => `<li class="${p.have >= p.need ? "ok" : ""}"><span>${esc(p.label)}</span><b>${p.have}/${p.need}</b></li>`).join("")}</ul>`;
-      if (j.ready) body += `<p class="jready">Allt är klart. Gå tillbaka till ${esc(j.giver)}.</p>`;
+      if (j.ready) body += `<p class="jready">Allt är klart. Gå till ${esc(j.turnIn)}.</p>`;
     }
     if (j.status === "done") body += `<p class="jready">Uppdraget är klart!</p>`;
     body += `<div class="secthead">Belöning</div><ul class="jrew">${j.rewards.map(r => `<li>${esc(r)}</li>`).join("")}</ul>`;
