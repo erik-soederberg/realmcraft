@@ -172,6 +172,29 @@ export function stationModel(kind: StationKind): THREE.Group {
     const horn = add(new THREE.ConeGeometry(0.09, 0.32, 10), M.ironTop, 0.36, 0.67, 0); horn.rotation.z = -Math.PI / 2; horn.scale.set(1, 1, 0.75);
     add(new THREE.CylinderGeometry(0.02, 0.02, 0.32, 6), mat("#4a3420"), -0.12, 0.74, 0.14).rotation.z = 1.4;
     add(new THREE.BoxGeometry(0.06, 0.08, 0.1), M.ironTop, 0.02, 0.76, 0.14);
+  } else if (kind === "cave_entrance") {
+    // A ragged arch of boulders around a black mouth, opening toward +z.
+    const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.85, 20, 0, Math.PI), new THREE.MeshBasicMaterial({ color: "#020202" }));
+    mouth.position.set(0, 0.02, 0.05); mouth.scale.set(1, 1.5, 1); g.add(mouth);
+    for (let k = 0; k <= 12; k++) {
+      const a = (k / 12) * Math.PI, r = 0.98 + Math.sin(k * 2.3) * 0.08;
+      const b = add(jitter(new THREE.IcosahedronGeometry(0.34 + (k % 3) * 0.06, 0), 0.12, 40 + k), k % 2 ? M.rock : M.rockDark, Math.cos(a) * r, Math.sin(a) * r * 1.5, -0.05);
+      b.rotation.set(k, k * 1.7, 0);
+    }
+    for (const [x, y, z, s] of [[-1.2, 0.3, -0.5, 0.55], [1.25, 0.35, -0.45, 0.6], [0, 1.9, -0.55, 0.7], [-0.7, 1.4, -0.7, 0.6], [0.75, 1.5, -0.7, 0.55]])
+      add(jitter(new THREE.IcosahedronGeometry(s, 1), 0.2, 90 + x * 10), M.rockDark, x, y, z);
+    // Old mine timbering in the mouth, so the opening reads from a distance.
+    for (const s of [-1, 1]) { const post = add(new THREE.BoxGeometry(0.13, 1.45, 0.13), M.bark, s * 0.6, 0.72, 0.25); post.rotation.z = s * 0.06; }
+    add(new THREE.BoxGeometry(1.5, 0.15, 0.16), M.bark, 0, 1.45, 0.25);
+    const lantern = add(new THREE.BoxGeometry(0.1, 0.14, 0.1), M.glow, 0.45, 1.25, 0.36); lantern.userData.noShadow = true;
+  } else if (kind === "cave_exit") {
+    // Rubble under a shaft of daylight, with a knotted rope hanging down.
+    for (let k = 0; k < 7; k++) add(jitter(new THREE.IcosahedronGeometry(0.18 + (k % 3) * 0.07, 0), 0.08, 60 + k), k % 2 ? M.rock : M.rockDark, Math.cos(k * 2.4) * 0.35, 0.12, Math.sin(k * 2.4) * 0.35);
+    const rope = add(new THREE.CylinderGeometry(0.025, 0.025, 4, 6), mat("#8a7048"), 0, 2, 0);
+    rope.userData.noShadow = true;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.9, 6, 16, 1, true), new THREE.MeshBasicMaterial({ color: "#d8e4ff", transparent: true, opacity: 0.12, depthWrite: false, side: THREE.DoubleSide, fog: false }));
+    shaft.position.y = 3; shaft.userData.noShadow = true; g.add(shaft);
+    const glow = new THREE.PointLight("#c8d8ff", 6, 6, 1.5); glow.position.y = 2.5; g.add(glow);
   } else {
     add(new THREE.BoxGeometry(0.95, 0.6, 0.7), M.stone, 0, 0.3, 0);
     add(new THREE.BoxGeometry(0.98, 0.06, 0.73), M.ironTop, 0, 0.63, 0);
@@ -182,24 +205,71 @@ export function stationModel(kind: StationKind): THREE.Group {
   return g;
 }
 
-import { humanoid } from "./human";
+import { humanoid, type Humanoid } from "./human";
 export { humanoid, type Humanoid } from "./human";
 
-/** Tools and weapons the player can hold; only one is visible at a time. */
-export function heldItems(hand: THREE.Group) {
+/** Tools and weapons in the right hand and a shield on the left forearm; one tool shows at a time. */
+export function heldItems(body: Humanoid) {
+  const hand = body.hand;
   const metal = (c: string) => mat(c, { metalness: 0.6, roughness: 0.35 });
   const handle = (len: number) => { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, len, 6), mat("#5a3e22")); h.rotation.x = Math.PI / 2; h.position.z = len / 2 - 0.05; return h; };
   const axe = new THREE.Group(); axe.add(handle(0.5)); { const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.16, 0.1), metal("#8a6a48")); h.position.set(0, 0.06, 0.42); axe.add(h); }
   const pick = new THREE.Group(); pick.add(handle(0.5)); { const h = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.4), metal("#9aa3a8")); h.rotation.x = Math.PI / 2; h.position.set(0, 0, 0.44); pick.add(h); }
   const net = new THREE.Group(); net.add(handle(0.55)); { const h = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.015, 4, 12), mat("#cfc8b0")); h.rotation.x = Math.PI / 2; h.position.set(0, 0, 0.58); net.add(h); }
-  const sword = new THREE.Group();
   const bladeMat = metal("#c08040");
-  { const b = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.6), bladeMat); b.position.z = 0.38; sword.add(b); const gd = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.04), mat("#3a2a1e")); gd.position.z = 0.07; sword.add(gd); }
-  const all = { axe, pick, net, sword };
-  for (const o of Object.values(all)) { castShadows(o); o.visible = false; hand.add(o); }
+  /** A straight blade along +z: grip at the hand, guard, blade and point. */
+  const blade = (len: number, width: number, gripLen: number, guardW: number) => {
+    const g = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.022, width, len), bladeMat); b.position.z = 0.09 + len / 2; g.add(b);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(width * 0.5, 0.08, 4), bladeMat); tip.rotation.x = Math.PI / 2; tip.position.z = 0.13 + len; tip.scale.set(0.8, 1, 2); g.add(tip);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(guardW, 0.035, 0.035), mat("#3a2a1e", { metalness: 0.4 })); guard.position.z = 0.09; g.add(guard);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, gripLen, 6), mat("#3a2414")); grip.rotation.x = Math.PI / 2; grip.position.z = 0.09 - gripLen / 2 + 0.02; g.add(grip);
+    return g;
+  };
+  const sword = blade(0.6, 0.055, 0.13, 0.2);
+  const dagger = blade(0.24, 0.045, 0.1, 0.12);
+  // The two-hander's long grip reaches back so both hands fit on it.
+  const greatsword = blade(1.0, 0.07, 0.32, 0.3);
+  // A bow held upright in the left hand (hand +z points up when the arm is raised forward); the string sits on the archer's side (+y).
+  const bow = new THREE.Group();
+  {
+    const wood = mat("#6a4424", { roughness: 0.7 });
+    const curve = new THREE.CatmullRomCurve3([[0.13, -0.62], [0.05, -0.4], [0, 0], [0.05, 0.4], [0.13, 0.62]].map(([y, z]) => new THREE.Vector3(0, y, z)));
+    bow.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.018, 6), wood));
+    const string = new THREE.Mesh(new THREE.CylinderGeometry(0.003, 0.003, 1.24, 3), mat("#e8e0cc"));
+    string.rotation.x = Math.PI / 2; string.position.y = 0.13; bow.add(string);
+  }
+  const weapons = { sword, dagger, greatsword };
+  let weapon: keyof typeof weapons | "bow" | null = "sword";
+  const all = { axe, pick, net };
+  for (const o of [...Object.values(all), ...Object.values(weapons)]) { castShadows(o); o.visible = false; hand.add(o); }
+  castShadows(bow); bow.visible = false; body.handL.add(bow);
+
+  // Round shield strapped to the outside of the left forearm.
+  const shieldFace = mat("#6a4a2c", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }), shieldRim = mat("#8a8478", { metalness: 0.6, roughness: 0.45 });
+  const shield = new THREE.Group();
+  {
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.025, 20), shieldFace); disc.rotation.z = Math.PI / 2; shield.add(disc);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.013, 6, 24), shieldRim); rim.rotation.y = Math.PI / 2; shield.add(rim);
+    const boss = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), shieldRim); boss.rotation.z = Math.PI / 2; boss.position.x = -0.012; shield.add(boss);
+  }
+  shield.position.set(-0.07, -0.12, 0.02);
+  shield.visible = false;
+  castShadows(shield);
+  body.elbowL.add(shield);
   return {
-    show(which: keyof typeof all | null) { for (const [k, o] of Object.entries(all)) o.visible = k === which; },
+    /** Shows a tool, the wielded weapon ("weapon"), or nothing. */
+    show(which: keyof typeof all | "weapon" | null) {
+      for (const [k, o] of Object.entries(all)) o.visible = k === which;
+      for (const [k, o] of Object.entries(weapons)) o.visible = which === "weapon" && k === weapon;
+      bow.visible = which === "weapon" && weapon === "bow";
+    },
+    setWeapon(kind: keyof typeof weapons | "bow" | null) { weapon = kind; },
     setBlade(color: string) { bladeMat.color.set(color); },
+    setShield(look: { color: string; rim: string } | null) {
+      shield.visible = !!look;
+      if (look) { shieldFace.color.set(look.color); shieldRim.color.set(look.rim); }
+    },
   };
 }
 
@@ -207,6 +277,8 @@ export function heldItems(hand: THREE.Group) {
 
 export function mobModel(look: MobDef["look"]): THREE.Group {
   if (look === "imp") return goblin();
+  if (look === "bandit") return bandit();
+  if (look === "troll") return troll();
   const g = new THREE.Group();
   const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number) => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); g.add(mesh); return mesh; };
   const ellipsoid = (rx: number, ry: number, rz: number) => { const e = new THREE.SphereGeometry(1, 16, 12); e.scale(rx, ry, rz); return e; };
@@ -236,6 +308,43 @@ export function mobModel(look: MobDef["look"]): THREE.Group {
     }
     const tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0, 0.2, -0.36), new THREE.Vector3(0.08, 0.1, -0.55), new THREE.Vector3(-0.05, 0.04, -0.8), new THREE.Vector3(0.1, 0.03, -1.0)]), 16, 0.018, 6), pink);
     g.add(tail);
+  } else if (look === "bear") {
+    const fur = mat("#3a2a1c", { map: detailTex, bumpMap: detailTex, bumpScale: 3 }), dark = mat("#26190f", { map: detailTex, bumpMap: detailTex, bumpScale: 3 });
+    const eye = mat("#0a0806", { roughness: 0.3 }), nose = mat("#111", { roughness: 0.3 });
+    add(ellipsoid(0.42, 0.4, 0.68), fur, 0, 0.92, -0.05);
+    add(ellipsoid(0.4, 0.42, 0.36), dark, 0, 1.05, 0.32);
+    add(ellipsoid(0.24, 0.22, 0.26), fur, 0, 1.0, 0.72);
+    const muzzle = add(new THREE.CylinderGeometry(0.09, 0.13, 0.22, 10), mat("#5a4430", { map: detailTex }), 0, 0.94, 0.95); muzzle.rotation.x = Math.PI / 2;
+    add(new THREE.SphereGeometry(0.05, 8, 6), nose, 0, 0.96, 1.06);
+    for (const s of [-1, 1]) {
+      add(new THREE.SphereGeometry(0.07, 10, 8), dark, s * 0.17, 1.2, 0.68);
+      add(new THREE.SphereGeometry(0.025, 8, 6), eye, s * 0.11, 1.07, 0.9);
+      leg(dark, s * 0.22, 0.38, 0.85, 0.42, 0.02, 0.1);
+      leg(dark, s * 0.24, -0.45, 0.85, 0.42, -0.08, 0.11);
+    }
+  } else if (look === "spider") {
+    const chitin = mat("#1d1a18", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5, roughness: 0.55 }), band = mat("#5a2a1c", { roughness: 0.6 });
+    const eye = mat("#ff3a22", { emissive: "#c01808", emissiveIntensity: 1.6, roughness: 0.2 });
+    add(ellipsoid(0.36, 0.3, 0.44), chitin, 0, 0.55, -0.42);
+    add(ellipsoid(0.2, 0.06, 0.3), band, 0, 0.82, -0.45);
+    add(ellipsoid(0.24, 0.17, 0.26), chitin, 0, 0.45, 0.12);
+    for (const s of [-1, 1]) {
+      for (let k = 0; k < 4; k++) {
+        // Each leg: up to a high knee, then down to the ground well outside the body.
+        const z = 0.26 - k * 0.15, spread = 0.95 - Math.abs(k - 1.5) * 0.1;
+        const knee = new THREE.Vector3(s * 0.55, 0.85, z + (k - 1.5) * 0.18), foot = new THREE.Vector3(s * spread, 0.03, z + (k - 1.5) * 0.42);
+        const start = new THREE.Vector3(s * 0.16, 0.45, z * 0.5 + 0.1);
+        for (const [a, b, r] of [[start, knee, 0.03], [knee, foot, 0.022]] as [THREE.Vector3, THREE.Vector3, number][]) {
+          const c = new THREE.Mesh(new THREE.CapsuleGeometry(r, a.distanceTo(b), 3, 6), chitin);
+          c.position.copy(a).add(b).multiplyScalar(0.5);
+          c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+          g.add(c);
+        }
+      }
+      add(new THREE.SphereGeometry(0.035, 8, 6), eye, s * 0.07, 0.52, 0.36);
+      add(new THREE.SphereGeometry(0.022, 8, 6), eye, s * 0.13, 0.55, 0.32);
+      const fang = add(new THREE.ConeGeometry(0.025, 0.12, 6), band, s * 0.05, 0.36, 0.36); fang.rotation.x = Math.PI;
+    }
   } else {
     const fur = mat("#47443f", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5 }), back = mat("#2c2a27", { map: detailTex, bumpMap: detailTex, bumpScale: 2.5 });
     const eye = mat("#c8a03c", { emissive: "#3a2a08", roughness: 0.3 }), nose = mat("#111", { roughness: 0.3 });
@@ -263,16 +372,48 @@ function goblin(): THREE.Group {
   const skin = mat("#56603f", { roughness: 0.6 });
   for (const s of [-1, 1]) {
     const ear = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.16, 5), skin);
-    ear.position.set(s * 0.11, 1.56, -0.01); ear.rotation.z = -s * 1.25;
-    h.group.add(ear);
+    ear.position.set(s * 0.11, 0.02, -0.02); ear.rotation.z = -s * 1.25;
+    h.head.add(ear);
   }
   const club = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.022, 0.5, 7), M.bark);
   club.rotation.x = Math.PI / 2; club.position.z = 0.22;
   h.hand.add(club);
-  h.armR.rotation.x = -0.4;
   h.group.scale.setScalar(0.74);
   castShadows(h.group);
   const g = new THREE.Group(); g.add(h.group);
+  g.userData.human = h;
+  return g;
+}
+
+/** A hooded robber with a short blade. */
+function bandit(): THREE.Group {
+  const h = humanoid({ skin: "#b88a68", shirt: "#4a2a22", trousers: "#2a2420", hair: "#2a1e16", hood: true, beard: true });
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.5), mat("#8a8e92", { metalness: 0.6, roughness: 0.4 }));
+  blade.position.z = 0.3; h.hand.add(blade);
+  castShadows(h.group);
+  const g = new THREE.Group(); g.add(h.group);
+  g.userData.human = h;
+  return g;
+}
+
+/** A hulking grey cave troll with a stone-headed club. */
+function troll(): THREE.Group {
+  const h = humanoid({ skin: "#5e655a", shirt: "#3a3226", trousers: "#2a241c", hair: "#1e1a14", hairStyle: "bald", beard: true });
+  const skin = mat("#5e655a", { roughness: 0.7, map: detailTex, bumpMap: detailTex, bumpScale: 2 });
+  for (const s of [-1, 1]) {
+    const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.08, 6), mat("#d8ccb0"));
+    tusk.position.set(s * 0.04, -0.07, 0.1); h.head.add(tusk);
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), skin); ear.scale.set(0.5, 1, 1);
+    ear.position.set(s * 0.1, 0, -0.01); h.head.add(ear);
+  }
+  const club = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.8, 7), M.bark); shaft.rotation.x = Math.PI / 2; shaft.position.z = 0.35; club.add(shaft);
+  const head = new THREE.Mesh(jitter(new THREE.IcosahedronGeometry(0.16, 0), 0.06, 8), M.rockDark); head.position.z = 0.78; club.add(head);
+  h.hand.add(club);
+  h.group.scale.setScalar(1.45);
+  castShadows(h.group);
+  const g = new THREE.Group(); g.add(h.group);
+  g.userData.human = h;
   return g;
 }
 
@@ -319,4 +460,85 @@ export class QuestMarker {
     this.sprite.visible = !!kind;
     if (kind) { this.sprite.material.map = glyphTexture(kind, kind === "!" ? "#f3d23a" : "#c9c9c9"); this.sprite.material.needsUpdate = true; }
   }
+}
+
+/* ---------- buildings ---------- */
+
+const H = {
+  wall: mat("#8a7a62", { map: detailTex, bumpMap: detailTex, bumpScale: 1.2 }),
+  timber: mat("#3a2818", { map: detailTex, bumpMap: detailTex, bumpScale: 1.5 }),
+  plank: mat("#5a4028", { map: detailTex, bumpMap: detailTex, bumpScale: 1 }),
+  thatch: mat("#5e4a2c", { map: detailTex, bumpMap: detailTex, bumpScale: 3, side: THREE.DoubleSide }),
+  cloth: mat("#6a1e18", { side: THREE.DoubleSide }),
+};
+
+export interface BuildingModel { group: THREE.Group; walls: THREE.Group; roof: THREE.Group }
+
+/**
+ * A timber-framed longhouse filling a footprint of w × d tiles whose north-west
+ * tile is (x0, z0). Walls run along the centres of the outer tiles with a gap
+ * at the door; the roof and walls are separate groups so the game can cut the
+ * house open while the player is inside.
+ */
+export function buildingModel(x0: number, z0: number, w: number, d: number, door: [number, number], floorY: number): BuildingModel {
+  const group = new THREE.Group(), walls = new THREE.Group(), roof = new THREE.Group();
+  group.position.set(x0, floorY, z0);
+  group.add(walls, roof);
+  const WALL_H = 2.2, T = 0.3;
+  const box = (parent: THREE.Object3D, m: THREE.Material, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), m); b.position.set(x, y, z); parent.add(b); return b;
+  };
+  // Floor planks across the whole inside.
+  box(group, H.plank, w - 1, 0.08, d - 1, w / 2, 0.04, d / 2);
+  // One wall side at a time, split at the doorway.
+  const lx = door[0] - x0 + 0.5, lz = door[1] - z0 + 0.5;
+  const side = (ax: number, az: number, bx: number, bz: number) => {
+    const horiz = az === bz, len = horiz ? bx - ax : bz - az;
+    const hasDoor = horiz ? Math.abs(lz - az) < 0.01 && lx > ax && lx < bx : Math.abs(lx - ax) < 0.01 && lz > az && lz < bz;
+    const pieces: [number, number][] = hasDoor ? [[0, (horiz ? lx - ax : lz - az) - 0.55], [(horiz ? lx - ax : lz - az) + 0.55, len]] : [[0, len]];
+    for (const [s0, s1] of pieces) {
+      const mid = (s0 + s1) / 2, l = s1 - s0 + T;
+      box(walls, H.wall, horiz ? l : T, WALL_H, horiz ? T : l, horiz ? ax + mid : ax, WALL_H / 2, horiz ? az : az + mid);
+      box(walls, H.timber, horiz ? l + 0.02 : T + 0.06, 0.14, horiz ? T + 0.06 : l + 0.02, horiz ? ax + mid : ax, WALL_H - 0.07, horiz ? az : az + mid);
+      box(walls, H.timber, horiz ? l + 0.02 : T + 0.06, 0.14, horiz ? T + 0.06 : l + 0.02, horiz ? ax + mid : ax, 0.07, horiz ? az : az + mid);
+    }
+    if (hasDoor) {
+      const dx = horiz ? lx : ax, dz = horiz ? az : lz;
+      box(walls, H.wall, horiz ? 1.1 : T, WALL_H - 1.75, horiz ? T : 1.1, dx, 1.75 + (WALL_H - 1.75) / 2, dz);
+      box(walls, H.timber, horiz ? 1.2 : T + 0.08, 0.16, horiz ? T + 0.08 : 1.2, dx, 1.75, dz);
+      for (const s of [-0.55, 0.55]) box(walls, H.timber, 0.14, 1.75, 0.14, horiz ? dx + s : dx, 0.875, horiz ? dz : dz + s);
+      const lamp = box(group, M.glow, 0.12, 0.16, 0.12, horiz ? dx + 0.8 : dx + (ax < w / 2 ? -0.3 : 0.3), 1.6, horiz ? dz + (az < d / 2 ? -0.3 : 0.3) : dz + 0.8);
+      lamp.userData.noShadow = true;
+    }
+  };
+  const W = w - 0.5, D = d - 0.5;
+  side(0.5, 0.5, W, 0.5); side(0.5, D, W, D); side(0.5, 0.5, 0.5, D); side(W, 0.5, W, D);
+  // Corner and mid posts.
+  for (const [px, pz] of [[0.5, 0.5], [W, 0.5], [0.5, D], [W, D], [w / 2, 0.5], [w / 2, D]]) box(walls, H.timber, 0.22, WALL_H + 0.1, 0.22, px, (WALL_H + 0.1) / 2, pz);
+  // Gabled thatch roof along the long axis, overhanging the walls.
+  const alongX = w >= d, span = (alongX ? D - 0.5 : W - 0.5) + 1.2, run = (alongX ? W - 0.5 : D - 0.5) + 1.2, rise = 1.5;
+  const slope = Math.hypot(span / 2, rise), ang = Math.atan2(rise, span / 2);
+  for (const s of [-1, 1]) {
+    const p = box(roof, H.thatch, alongX ? run : slope, 0.16, alongX ? slope : run, w / 2 + (alongX ? 0 : s * span / 4), WALL_H + rise / 2, d / 2 + (alongX ? s * span / 4 : 0));
+    if (alongX) p.rotation.x = s * ang; else p.rotation.z = -s * ang;
+  }
+  const ridge = box(roof, H.timber, alongX ? run + 0.1 : 0.2, 0.2, alongX ? 0.2 : run + 0.1, w / 2, WALL_H + rise + 0.05, d / 2);
+  ridge.castShadow = true;
+  // Gable ends.
+  const tri = new THREE.Shape([new THREE.Vector2(-span / 2 + 0.6, 0), new THREE.Vector2(span / 2 - 0.6, 0), new THREE.Vector2(0, rise - 0.3)]);
+  for (const end of [0.5, alongX ? W : D]) {
+    const g = new THREE.Mesh(new THREE.ShapeGeometry(tri), H.wall);
+    g.material = H.wall; (g.material as THREE.Material).side = THREE.DoubleSide;
+    if (alongX) { g.rotation.y = Math.PI / 2; g.position.set(end, WALL_H, d / 2); } else g.position.set(w / 2, WALL_H, end);
+    roof.add(g);
+  }
+  // Inside: a long table with benches and a banner.
+  const tx = w / 2, tz = d / 2;
+  box(group, H.timber, alongX ? 2.4 : 0.9, 0.08, alongX ? 0.9 : 2.4, tx - (alongX ? 0.6 : 0), 0.78, tz - (alongX ? 0 : 0.6));
+  for (const [ox, oz] of [[-1, -0.35], [1, -0.35], [-1, 0.35], [1, 0.35]]) box(group, H.timber, 0.08, 0.74, 0.08, tx - (alongX ? 0.6 : 0) + (alongX ? ox : oz), 0.37, tz - (alongX ? 0 : 0.6) + (alongX ? oz : ox));
+  for (const s of [-1, 1]) box(group, H.plank, alongX ? 2.2 : 0.3, 0.42, alongX ? 0.3 : 2.2, tx - (alongX ? 0.6 : 0) + (alongX ? 0 : s * 0.75), 0.21, tz - (alongX ? 0 : 0.6) + (alongX ? s * 0.75 : 0));
+  const banner = box(walls, H.cloth, alongX ? 0.9 : 0.02, 1.1, alongX ? 0.02 : 0.9, alongX ? tx : 0.5 + T / 2 + 0.02, 1.3, alongX ? 0.5 + T / 2 + 0.02 : tz);
+  banner.userData.noShadow = true;
+  castShadows(group);
+  return { group, walls, roof };
 }

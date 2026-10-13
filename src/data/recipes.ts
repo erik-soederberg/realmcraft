@@ -29,8 +29,8 @@ export const RECIPES: Recipe[] = [
 ];
 
 export const STATION_EMPTY: Partial<Record<StationKind, string>> = {
-  furnace: "Du har ingen malm som går att smälta. Brons kräver koppar och tenn, järn kräver nivå 15 i Smide.",
-  anvil: "Du behöver en bronstacka för att smida ett svärd. Järnsvärd kräver nivå 15 i Smide.",
+  furnace: "Du har ingen malm som går att smälta. Brons kräver koppar och tenn, järn kräver level 15 i Smide.",
+  anvil: "Du behöver en bronstacka för att smida ett svärd. Järnsvärd kräver level 15 i Smide.",
   range: "Du har ingen rå mat att laga.",
 };
 export const STATION_START: Partial<Record<StationKind, string>> = {

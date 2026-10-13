@@ -11,11 +11,13 @@
 <div id="app">
   <div id="view"></div>
   <div id="grade"></div>
+  <div id="labels" aria-hidden="true"></div>
   <div id="loading">Laddar Ekdal…</div>
 
   <div class="hud" id="topleft">
     <div id="brand">Ekdal <small id="version"></small></div>
     <div id="pname"></div>
+    <div id="plevel"></div>
     <div id="region"></div>
     <div id="hover"></div>
   </div>
@@ -36,12 +38,20 @@
       <div class="orb hp" id="hporb">Hälsa 10/10</div>
       <button class="orb" id="run" aria-pressed="true">Spring</button>
     </div>
+    <div id="qtrack" hidden></div>
     <div id="xpdrops"></div>
   </div>
 
   <div class="hud" id="toast"><div class="big" id="toastBig"></div><div class="small" id="toastSmall"></div></div>
 
   <div class="hud" id="chat" aria-live="polite"></div>
+
+  <div class="hud" id="xpbar" role="progressbar" aria-label="Erfarenhet till nästa level" aria-valuemin="0" aria-valuemax="100"><div id="xpfill"></div><span id="xptext"></span></div>
+
+  <div class="hud" id="journal" role="dialog" aria-labelledby="jtitle" hidden>
+    <button class="jx" id="jclose" aria-label="Stäng">×</button>
+    <div class="jbody" id="jbody"></div>
+  </div>
 
   <div class="hud" id="dialogue" hidden>
     <div class="dname" id="dname"></div>
@@ -66,13 +76,15 @@
 
   <div class="hud collapsed" id="panel">
     <div class="tabpane" id="pane-inv" hidden><div class="inv" id="inv"></div></div>
+    <div class="tabpane" id="pane-equip" hidden></div>
     <div class="tabpane" id="pane-skills" hidden></div>
     <div class="tabpane" id="pane-quests" hidden></div>
     <div class="tabpane" id="pane-bank" hidden></div>
     <div id="tabs" role="tablist" aria-label="Spelmeny">
       <button role="tab" data-tab="inv" aria-selected="false" title="Packning" aria-label="Packning"><svg viewBox="0 0 32 32"><path d="M11 9 Q16 4 21 9" fill="none" stroke="#3a2614" stroke-width="2.2"/><path d="M8 12 Q16 8 24 12 L26 25 Q16 30 6 25 Z" fill="#7a5532" stroke="#2a1a0c" stroke-width="1.4"/><path d="M8 12 Q16 15 24 12" fill="none" stroke="#2a1a0c" stroke-width="1.2"/><rect x="14" y="16" width="4" height="4" rx="1" fill="#b89a52" stroke="#2a1a0c"/></svg></button>
-      <button role="tab" data-tab="skills" aria-selected="false" title="Nivåer" aria-label="Nivåer"><svg viewBox="0 0 32 32"><rect x="5" y="18" width="5" height="9" fill="#7fbf5a" stroke="#1a2a10"/><rect x="13.5" y="12" width="5" height="15" fill="#d6a644" stroke="#3a2a08"/><rect x="22" y="6" width="5" height="21" fill="#e0735a" stroke="#3a140c"/></svg></button>
-      <button role="tab" data-tab="quests" aria-selected="false" title="Uppdrag" aria-label="Uppdrag"><svg viewBox="0 0 32 32"><path d="M8 6 L23 6 Q26 6 26 9 L26 26 L11 26 Q8 26 8 23 Z" fill="#d9c9a0" stroke="#4a3a1e" stroke-width="1.3"/><path d="M8 23 Q8 20 11 20 L11 26" fill="#bfae82" stroke="#4a3a1e" stroke-width="1.2"/><path d="M13 11 H22 M13 15 H22 M13 19 H19" stroke="#5a4626" stroke-width="1.5"/></svg></button>
+      <button role="tab" data-tab="equip" aria-selected="false" title="Utrustning" aria-label="Utrustning"><svg viewBox="0 0 32 32"><path d="M16 4 L26 7 Q26 20 16 28 Q6 20 6 7 Z" fill="#6a4a2c" stroke="#24160a" stroke-width="1.4"/><path d="M16 7 L23 9 Q23 18 16 24 Z" fill="#8a8478" opacity=".55"/><circle cx="16" cy="14" r="2.6" fill="#9a9ea2" stroke="#24160a"/></svg></button>
+      <button role="tab" data-tab="skills" aria-selected="false" title="Färdigheter" aria-label="Färdigheter"><svg viewBox="0 0 32 32"><rect x="5" y="18" width="5" height="9" fill="#7fbf5a" stroke="#1a2a10"/><rect x="13.5" y="12" width="5" height="15" fill="#d6a644" stroke="#3a2a08"/><rect x="22" y="6" width="5" height="21" fill="#e0735a" stroke="#3a140c"/></svg></button>
+      <button role="tab" data-tab="quests" aria-selected="false" title="Uppdragslogg" aria-label="Uppdragslogg"><svg viewBox="0 0 32 32"><path d="M8 6 L23 6 Q26 6 26 9 L26 26 L11 26 Q8 26 8 23 Z" fill="#d9c9a0" stroke="#4a3a1e" stroke-width="1.3"/><path d="M8 23 Q8 20 11 20 L11 26" fill="#bfae82" stroke="#4a3a1e" stroke-width="1.2"/><path d="M13 11 H22 M13 15 H22 M13 19 H19" stroke="#5a4626" stroke-width="1.5"/></svg></button>
       <button role="tab" data-tab="bank" aria-selected="false" title="Bank" aria-label="Bank"><svg viewBox="0 0 32 32"><path d="M5 14 Q5 7 16 7 Q27 7 27 14 Z" fill="#5a3a20" stroke="#24160a" stroke-width="1.3"/><rect x="5" y="14" width="22" height="12" fill="#6a4426" stroke="#24160a" stroke-width="1.3"/><path d="M10 8.5 V26 M22 8.5 V26" stroke="#55585c" stroke-width="2.2"/><rect x="14" y="15" width="4" height="5" rx="1" fill="#9a9ea2" stroke="#24160a"/></svg></button>
     </div>
   </div>

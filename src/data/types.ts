@@ -2,7 +2,7 @@
  * Content types. Everything a designer adds (items, monsters, NPCs, quests,
  * regions) is plain data described by these types; the engine reads it.
  */
-import type { SKILLS } from "./skills";
+import type { SKILLS, WeaponStyle } from "./skills";
 import type { ITEMS } from "./items";
 import type { MOBS } from "./mobs";
 
@@ -17,17 +17,43 @@ export type IconSpec =
   | { kind: "fish"; color: string; belly: number }
   | { kind: "meat"; color: string }
   | { kind: "bones" }
-  | { kind: "sword"; color: string };
+  | { kind: "sword"; color: string }
+  | { kind: "greatsword"; color: string }
+  | { kind: "dagger"; color: string }
+  | { kind: "bow"; color: string }
+  | { kind: "shield"; color: string; rim: string }
+  | { kind: "scroll"; color: string; seal: string };
 
 export interface ItemDef {
   name: string;
   icon: IconSpec;
   heal?: number;
-  weapon?: { acc: number; str: number; speed: number };
+  /** Quest items cannot be thrown away; clicking one shows this instead. */
+  quest?: string;
+  /** Worn or wielded: which slot it goes in and the bonuses it gives. */
+  equip?: EquipStats;
+}
+
+export type EquipSlot = "head" | "weapon" | "body" | "shield" | "legs";
+
+export interface EquipStats {
+  slot: EquipSlot;
+  /** Attack accuracy bonus. */
+  acc?: number;
+  /** Strength bonus (max hit). */
+  str?: number;
+  /** Defence bonus against melee. */
+  def?: number;
+  /** Ticks between attacks; weapons only. */
+  speed?: number;
+  /** Weapons only: which skill the weapon trains and uses. Two-handers and bows leave no hand for a shield. */
+  style?: WeaponStyle;
+  /** Weapons only: attack distance in tiles; 1 is melee. */
+  range?: number;
 }
 
 export type ResourceKind = "tree" | "oak" | "copper" | "tin" | "iron" | "fish";
-export type StationKind = "bank" | "furnace" | "anvil" | "range";
+export type StationKind = "bank" | "furnace" | "anvil" | "range" | "cave_entrance" | "cave_exit";
 
 export interface ResourceDef {
   name: string;
@@ -52,6 +78,8 @@ export interface StationDef {
 
 export interface MobDef {
   name: string;
+  /** Plural form, used in quest progress ("Vargar 1/3"). */
+  plural: string;
   /** Definite form, used in sentences ("Du besegrade vargen"). */
   the: string;
   level: number;
@@ -61,8 +89,10 @@ export interface MobDef {
   def: number;
   drops: [ItemId, number][];
   respawn: number;
+  /** Experience for the kill: character experience, the weapon skill, and a third to Hälsa. */
+  xp: number;
   aggressive: boolean;
-  look: "rat" | "imp" | "wolf";
+  look: "rat" | "imp" | "wolf" | "bear" | "spider" | "bandit" | "troll";
 }
 
 /* ---------- quests & dialogue ---------- */
@@ -79,7 +109,8 @@ export type DialogueAction =
   | { startQuest: string }
   | { setStage: { quest: string; stage: string } }
   | { completeQuest: string }
-  | { take: Partial<Record<ItemId, number>> };
+  | { take: Partial<Record<ItemId, number>> }
+  | { give: ItemId };
 
 export interface DialogueOption {
   text: string;
@@ -108,7 +139,12 @@ export interface QuestDef {
   giver: string;
   summary: string;
   steps: QuestStep[];
-  rewards: { xp?: Partial<Record<SkillId, number>>; items?: ItemId[] };
+  /** `exp` is character experience; `xp` goes to individual skills. */
+  /** Who the quest is handed in to, when it is not the giver. */
+  turnIn?: string;
+  /** The giver only offers the quest once these hold, for example an earlier quest being done. */
+  requires?: Condition[];
+  rewards: { exp: number; xp?: Partial<Record<SkillId, number>>; items?: ItemId[] };
 }
 
 export type HairStyle = "short" | "long" | "ponytail" | "bald";
@@ -122,6 +158,10 @@ export interface HumanLook {
   hood?: boolean;
   hairStyle?: HairStyle;
   beard?: boolean;
+  /** Mail shirt instead of cloth. */
+  chain?: boolean;
+  /** Cape colour; no cape when left out. */
+  cape?: string;
 }
 
 export interface NpcDef {
@@ -135,11 +175,24 @@ export interface NpcDef {
 
 /* ---------- regions ---------- */
 
+export interface BuildingDef {
+  name: string;
+  /** North-west corner tile. */
+  at: [number, number];
+  /** Width (x) and depth (z) in tiles, walls included. */
+  size: [number, number];
+  /** The wall tile left open as the doorway. */
+  door: [number, number];
+}
+
 export type RegionFeature =
   | { type: "lake"; x: number; z: number; r: number }
   | { type: "river"; x: number; z0: number; z1: number; width: number; wiggle: number }
   | { type: "quarry"; x: number; z: number; r: number }
-  | { type: "path"; points: [number, number][] };
+  | { type: "path"; points: [number, number][] }
+  /** Cave regions only: open floor carved out of the rock. */
+  | { type: "chamber"; x: number; z: number; r: number }
+  | { type: "tunnel"; points: [number, number][]; width: number };
 
 export interface RegionDef {
   id: string;
@@ -149,8 +202,13 @@ export interface RegionDef {
   size: [number, number];
   spawn?: [number, number];
   features: RegionFeature[];
+  /** Houses: walls on the outer ring of tiles, a gap at `door`, a floor inside. Coordinates are local tiles. */
+  buildings?: BuildingDef[];
+  /** Underground: the region starts as solid rock, chambers and tunnels are carved out, and it is lit by torchlight. */
+  cave?: boolean;
   forest: { threshold: number; density: number; oakChance: number; scatter: number; clearings: [number, number, number][] };
-  stations: { kind: StationKind; at: [number, number]; facing?: number }[];
+  /** `link` is where a cave entrance or exit leads, as region id and a tile local to that region. */
+  stations: { kind: StationKind; at: [number, number]; facing?: number; link?: { region: string; at: [number, number] } }[];
   resources: { kind: ResourceKind; at: [number, number] }[];
   fishing: { near: [number, number]; count: number };
   mobs: { mob: MobId; at: [number, number] }[];

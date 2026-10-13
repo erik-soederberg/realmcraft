@@ -12,8 +12,15 @@ export interface Humanoid {
   group: THREE.Group;
   legL: THREE.Group; legR: THREE.Group; armL: THREE.Group; armR: THREE.Group;
   kneeL: THREE.Group; kneeR: THREE.Group; elbowL: THREE.Group; elbowR: THREE.Group;
+  /** Whole body inside the group: raise it for the bob of a step. */
+  root: THREE.Group;
+  /** Everything above the hips, pivoting at the hips: lean and twist. */
+  upper: THREE.Group;
+  head: THREE.Group;
   cape?: THREE.Mesh;
   hand: THREE.Group;
+  /** Grip point in the left hand, for bows. */
+  handL: THREE.Group;
 }
 
 // Key heights, in world units (a tile is one unit).
@@ -127,8 +134,10 @@ const DARK = {
 };
 
 export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): Humanoid {
-  const g = new THREE.Group();
-  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = g) => {
+  const g = new THREE.Group(), root = new THREE.Group(), upper = new THREE.Group(), top = new THREE.Group();
+  g.add(root); root.add(upper);
+  upper.position.y = HIP; top.position.y = -HIP; upper.add(top);
+  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = top) => {
     const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); parent.add(mesh); return mesh;
   };
   const skin = mat(look.skin, { roughness: 0.62 });
@@ -146,7 +155,7 @@ export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): 
   add(NECK, skin, 0, 1.43, 0.005);
 
   // Head.
-  const head = new THREE.Group(); head.position.set(0, HEAD, 0.012); g.add(head);
+  const head = new THREE.Group(); head.position.set(0, HEAD, 0.012); top.add(head);
   add(HEAD_GEO, skin, 0, 0, 0, head);
   add(NOSE, skin, 0, -0.016, 0.096, head);
   for (const s of [-1, 1]) {
@@ -188,7 +197,7 @@ export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): 
   // Limbs hang from pivots so the game can rotate them.
   const pivot = (parent: THREE.Object3D, x: number, y: number) => { const p = new THREE.Group(); p.position.set(x, y, 0); parent.add(p); return p; };
   const arm = (s: number) => {
-    const sh = pivot(g, s * 0.222, SHOULDER - 0.02);
+    const sh = pivot(top, s * 0.222, SHOULDER - 0.02);
     add(UPPER_ARM, shirt, 0, 0, 0, sh);
     const el = pivot(sh, 0, -0.28);
     el.rotation.x = -0.18;
@@ -198,7 +207,7 @@ export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): 
     return { sh, el };
   };
   const leg = (s: number) => {
-    const hip = pivot(g, s * 0.08, HIP);
+    const hip = pivot(root, s * 0.08, HIP);
     add(THIGH, trousers, 0, 0, 0, hip);
     const kn = pivot(hip, 0, -0.42);
     add(SHIN, trousers, 0, 0, 0, kn);
@@ -208,6 +217,7 @@ export function humanoid(look: HumanLook & { chain?: boolean; cape?: string }): 
   };
   const L = arm(-1), R = arm(1), LL = leg(-1), LR = leg(1);
   const hand = new THREE.Group(); hand.position.set(0, -0.27, 0.02); R.el.add(hand);
+  const handL = new THREE.Group(); handL.position.set(0, -0.27, 0.02); L.el.add(handL);
   castShadows(g);
-  return { group: g, legL: LL.hip, legR: LR.hip, kneeL: LL.kn, kneeR: LR.kn, armL: L.sh, armR: R.sh, elbowL: L.el, elbowR: R.el, cape, hand };
+  return { group: g, root, upper, head, legL: LL.hip, legR: LR.hip, kneeL: LL.kn, kneeR: LR.kn, armL: L.sh, armR: R.sh, elbowL: L.el, elbowR: R.el, cape, hand, handL };
 }

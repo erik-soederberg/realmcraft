@@ -1,8 +1,10 @@
 import { events } from "../core/events";
 import { ITEMS } from "../data/items";
 import { QUEST_BY_ID, QUESTS } from "../data/quests";
+import { MOBS } from "../data/mobs";
+import { NPCS } from "../data/npcs";
 import { levelForXp, SKILLS } from "../data/skills";
-import type { Condition, DialogueAction, DialogueNode, ItemId, NpcDef, SkillId } from "../data/types";
+import type { Condition, DialogueAction, DialogueNode, ItemId, NpcDef, QuestDef, SkillId } from "../data/types";
 import type { GameState } from "./state";
 
 export const NOT_STARTED = "not_started";
@@ -16,6 +18,7 @@ export class QuestEngine {
       take(items: Partial<Record<ItemId, number>>): void;
       give(item: ItemId): boolean;
       xp(skill: SkillId, amount: number): void;
+      exp(amount: number): void;
       message(text: string, kind?: string): void;
       toast(big: string, small: string): void;
     },
@@ -45,6 +48,10 @@ export class QuestEngine {
     const s = this.s();
     for (const a of actions) {
       if ("take" in a) this.hooks.take(a.take);
+      else if ("give" in a) {
+        if (!this.hooks.give(a.give)) s.bank[a.give] = (s.bank[a.give] ?? 0) + 1;
+        this.hooks.message(`Du fick ${ITEMS[a.give].name.toLowerCase()}.`, "sys");
+      }
       else if ("startQuest" in a) {
         const q = QUEST_BY_ID[a.startQuest]; if (!q) continue;
         s.quests[q.id] = q.steps[0].id;
@@ -58,11 +65,12 @@ export class QuestEngine {
       } else if ("completeQuest" in a) {
         const q = QUEST_BY_ID[a.completeQuest]; if (!q) continue;
         s.quests[q.id] = DONE;
-        const parts: string[] = [];
+        const parts: string[] = [`${q.rewards.exp} XP`];
+        this.hooks.exp(q.rewards.exp);
         for (const [sk, xp] of Object.entries(q.rewards.xp ?? {})) { this.hooks.xp(sk as SkillId, xp ?? 0); parts.push(`${xp} XP i ${SKILLS[sk as SkillId].name}`); }
         for (const it of q.rewards.items ?? []) { if (!this.hooks.give(it)) s.bank[it] = (s.bank[it] ?? 0) + 1; parts.push(ITEMS[it].name.toLowerCase()); }
         this.hooks.message(`Uppdrag klart: ${q.name}. Belöning: ${parts.join(", ")}.`, "lvl");
-        this.hooks.toast("Uppdrag klart", q.name);
+        this.hooks.toast("Uppdrag klart", `${q.name} · +${q.rewards.exp} XP`);
         events.emit("quest", { quest: q.id });
       }
     }
@@ -71,13 +79,47 @@ export class QuestEngine {
   /** "!" when the NPC has a quest to give, "?" when one can be handed in. */
   marker(npc: NpcDef): "!" | "?" | null {
     let mark: "!" | "?" | null = null;
-    for (const id of npc.quests) {
-      const q = QUEST_BY_ID[id]; if (!q) continue;
-      const st = this.stage(id);
-      if (st === NOT_STARTED) mark = mark ?? "!";
-      else if (st !== DONE) { const step = q.steps.find(x => x.id === st); if (step && this.checkAll(step.ready)) return "?"; }
+    for (const q of QUESTS) {
+      const st = this.stage(q.id);
+      if (st === NOT_STARTED) { if (npc.quests.includes(q.id) && this.checkAll(q.requires)) mark = mark ?? "!"; continue; }
+      if (st === DONE || (q.turnIn ?? q.giver) !== npc.id) continue;
+      const step = q.steps.find(x => x.id === st);
+      if (step && this.checkAll(step.ready)) return "?";
     }
     return mark;
+  }
+
+  /** Countable parts of a step's hand-in condition, such as "Vargar 1/3". */
+  progress(c: Condition[] = []): { label: string; have: number; need: number }[] {
+    const s = this.s(), out: { label: string; have: number; need: number }[] = [];
+    for (const x of c) {
+      if ("hasItems" in x) for (const [id, n] of Object.entries(x.hasItems)) out.push({ label: ITEMS[id as ItemId].name, have: Math.min(n ?? 0, this.count(id as ItemId)), need: n ?? 0 });
+      else if ("killsSinceStart" in x) {
+        const k = x.killsSinceStart, have = (s.kills[k.mob] ?? 0) - (s.questStart[k.quest]?.[k.mob] ?? 0);
+        out.push({ label: `${MOBS[k.mob].plural} besegrade`, have: Math.min(k.count, have), need: k.count });
+      } else if ("level" in x) out.push({ label: `Level i ${SKILLS[x.level.skill].name}`, have: Math.min(x.level.min, levelForXp(s.xp[x.level.skill])), need: x.level.min });
+    }
+    return out;
+  }
+
+  /** Everything the quest journal shows for one quest. */
+  journal(q: QuestDef) {
+    const st = this.stage(q.id), giver = NPCS.find(n => n.id === q.giver), turnIn = NPCS.find(n => n.id === (q.turnIn ?? q.giver));
+    const idx = st === DONE ? q.steps.length : q.steps.findIndex(x => x.id === st);
+    const status: "active" | "done" | "available" = st === DONE ? "done" : st === NOT_STARTED ? "available" : "active";
+    const current = status === "active" ? q.steps[idx] : undefined;
+    const rewards = [
+      `${q.rewards.exp} XP`,
+      ...Object.entries(q.rewards.xp ?? {}).map(([sk, xp]) => `${xp} XP i ${SKILLS[sk as SkillId].name}`),
+      ...(q.rewards.items ?? []).map(it => ITEMS[it].name),
+    ];
+    return {
+      id: q.id, name: q.name, summary: q.summary, status, giver: giver?.name ?? "", turnIn: turnIn?.name ?? "",
+      done: q.steps.slice(0, Math.max(0, idx)).map(x => x.log),
+      current: current?.log, ready: current ? this.checkAll(current.ready) : false,
+      progress: current ? this.progress(current.ready) : [],
+      rewards,
+    };
   }
 
   log(): { name: string; status: "active" | "done" | "available"; text: string }[] {

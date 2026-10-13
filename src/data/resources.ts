@@ -19,4 +19,6 @@ export const STATIONS: Record<StationKind, StationDef> = {
   furnace: { name: "Smältugn", verb: "Smält vid", skill: "smithing" },
   anvil: { name: "Städ", verb: "Smid vid", skill: "smithing" },
   range: { name: "Spis", verb: "Laga mat på", skill: "cooking" },
+  cave_entrance: { name: "Svartgrottan", verb: "Gå in i" },
+  cave_exit: { name: "Grottans utgång", verb: "Klättra ut genom" },
 };
