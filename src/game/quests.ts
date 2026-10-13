@@ -18,6 +18,7 @@ export class QuestEngine {
       take(items: Partial<Record<ItemId, number>>): void;
       give(item: ItemId): boolean;
       xp(skill: SkillId, amount: number): void;
+      exp(amount: number): void;
       message(text: string, kind?: string): void;
       toast(big: string, small: string): void;
     },
@@ -64,7 +65,8 @@ export class QuestEngine {
       } else if ("completeQuest" in a) {
         const q = QUEST_BY_ID[a.completeQuest]; if (!q) continue;
         s.quests[q.id] = DONE;
-        const parts: string[] = [];
+        const parts: string[] = [`${q.rewards.exp} XP`];
+        this.hooks.exp(q.rewards.exp);
         for (const [sk, xp] of Object.entries(q.rewards.xp ?? {})) { this.hooks.xp(sk as SkillId, xp ?? 0); parts.push(`${xp} XP i ${SKILLS[sk as SkillId].name}`); }
         for (const it of q.rewards.items ?? []) { if (!this.hooks.give(it)) s.bank[it] = (s.bank[it] ?? 0) + 1; parts.push(ITEMS[it].name.toLowerCase()); }
         this.hooks.message(`Uppdrag klart: ${q.name}. Belöning: ${parts.join(", ")}.`, "lvl");
@@ -106,6 +108,7 @@ export class QuestEngine {
     const status: "active" | "done" | "available" = st === DONE ? "done" : st === NOT_STARTED ? "available" : "active";
     const current = status === "active" ? q.steps[idx] : undefined;
     const rewards = [
+      `${q.rewards.exp} XP`,
       ...Object.entries(q.rewards.xp ?? {}).map(([sk, xp]) => `${xp} XP i ${SKILLS[sk as SkillId].name}`),
       ...(q.rewards.items ?? []).map(it => ITEMS[it].name),
     ];

@@ -14,7 +14,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "bars", log: "Smält 3 bronstackor och ge dem till Arvid vid ugnen.", ready: [{ hasItems: { bronze_bar: 3 } }] },
     ],
-    rewards: { xp: { smithing: 350, mining: 150, onehand: 150 }, items: ["iron_sword"] },
+    rewards: { exp: 250, xp: { smithing: 120, mining: 60, onehand: 50 }, items: ["iron_sword"] },
   },
   {
     id: "fisher_supper",
@@ -24,7 +24,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "cook", log: "Fånga och laga 4 räkor och ge dem till Tove vid sjön.", ready: [{ hasItems: { c_shrimp: 4 } }] },
     ],
-    rewards: { xp: { fishing: 250, cooking: 250 } },
+    rewards: { exp: 200, xp: { fishing: 100, cooking: 100 } },
   },
   {
     id: "wolf_trouble",
@@ -34,7 +34,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "hunt", log: "Besegra 3 vargar i skogen nordväst om byn och berätta det för Bo.", ready: [{ killsSinceStart: { quest: "wolf_trouble", mob: "wolf", count: 3 } }] },
     ],
-    rewards: { xp: { onehand: 500, bow: 500, shield: 400, hp: 300 }, items: ["bronze_shield"] },
+    rewards: { exp: 350, xp: { onehand: 120, bow: 80, shield: 80, hp: 60 }, items: ["bronze_shield"] },
   },
   {
     id: "spider_cave",
@@ -44,7 +44,7 @@ export const QUESTS: QuestDef[] = [
     steps: [
       { id: "hunt", log: "Besegra 5 grottspindlar i Svartgrottan och berätta det för Stina.", ready: [{ killsSinceStart: { quest: "spider_cave", mob: "spider", count: 5 } }] },
     ],
-    rewards: { xp: { mining: 400, shield: 300, hp: 300 }, items: ["iron_shield"] },
+    rewards: { exp: 600, xp: { mining: 200, shield: 150, hp: 100 }, items: ["iron_shield"] },
   },
 ];
 

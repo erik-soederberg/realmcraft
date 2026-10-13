@@ -86,7 +86,7 @@ export interface MobDef {
   def: number;
   drops: [ItemId, number][];
   respawn: number;
-  /** Experience for the kill, split between the weapon skill, Hälsa and Sköld. */
+  /** Experience for the kill: character experience, the weapon skill, and a third to Hälsa. */
   xp: number;
   aggressive: boolean;
   look: "rat" | "imp" | "wolf" | "bear" | "spider" | "bandit" | "troll";
@@ -136,7 +136,8 @@ export interface QuestDef {
   giver: string;
   summary: string;
   steps: QuestStep[];
-  rewards: { xp?: Partial<Record<SkillId, number>>; items?: ItemId[] };
+  /** `exp` is character experience; `xp` goes to individual skills. */
+  rewards: { exp: number; xp?: Partial<Record<SkillId, number>>; items?: ItemId[] };
 }
 
 export type HairStyle = "short" | "long" | "ponytail" | "bald";

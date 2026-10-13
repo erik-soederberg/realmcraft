@@ -22,6 +22,8 @@ export interface GameState {
   /** Null until the player has created a character. */
   profile: Profile | null;
   xp: Record<SkillId, number>;
+  /** Character experience; the character level comes from this. */
+  exp: number;
   hp: number;
   /** What the player wears and wields, by slot. */
   equip: Partial<Record<EquipSlot, ItemId>>;
@@ -45,7 +47,7 @@ export function freshState(spawn: [number, number]): GameState {
   const xp = Object.fromEntries(Object.keys(SKILLS).map(k => [k, 0])) as Record<SkillId, number>;
   xp.hp = XP_TABLE[10];
   return {
-    profile: null, xp, hp: 10, equip: { ...STARTER_GEAR }, inv: new Array(INVENTORY_SIZE).fill(null),
+    profile: null, xp, exp: 0, hp: 10, equip: { ...STARTER_GEAR }, inv: new Array(INVENTORY_SIZE).fill(null),
     bank: {}, gathered: {}, made: {}, kills: {}, deposited: 0, goals: {}, quests: {}, questStart: {},
     pos: spawn, run: true, hint: true,
   };
@@ -90,6 +92,10 @@ export function restoreState(data: unknown, spawn: [number, number]): GameState 
     // Saves from before equipment slots: keep the old weapon and hand out the starter shield.
     f.equip.weapon = d.weapon;
   }
+  // Saves from before character levels: credit finished quests and past kills.
+  f.exp = d.exp != null ? Math.max(0, Number(d.exp) || 0)
+    : Object.keys(f.quests).filter(k => f.quests[k] === "done").reduce((a, k) => a + QUEST_BY_ID[k].rewards.exp, 0)
+      + (Object.entries(f.kills) as [MobId, number][]).reduce((a, [m, n]) => a + MOBS[m].xp * n, 0);
   f.hp = Math.max(1, Math.min(levelForXp(f.xp.hp), d.hp == null ? 99 : Number(d.hp) | 0));
   if (Array.isArray(d.pos) && d.pos.length === 2) f.pos = [Number(d.pos[0]) | 0, Number(d.pos[1]) | 0];
   f.run = d.run !== false;

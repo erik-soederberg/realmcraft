@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { SKILLS } from "../data/skills";
 import type { SkillId } from "../data/types";
+import { MAX_LEVEL, expForLevel } from "../data/levels";
 
 export const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 export const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
@@ -24,10 +25,11 @@ export class Hud {
     this.toastTimer = window.setTimeout(() => $("toast").classList.remove("show"), 2200);
   }
 
-  xpDrop(skill: SkillId, xp: number): void {
+  /** Rising "+30 Enhandsvapen" next to the minimap; no skill means character experience. */
+  xpDrop(skill: SkillId | null, xp: number): void {
     const d = document.createElement("div");
-    d.className = "drop";
-    d.innerHTML = `+${Math.round(xp * 10) / 10} <span>${SKILLS[skill].name}</span>`;
+    d.className = skill ? "drop" : "drop exp";
+    d.innerHTML = `+${Math.round(xp * 10) / 10} <span>${skill ? SKILLS[skill].name : "XP"}</span>`;
     $("xpdrops").appendChild(d);
     setTimeout(() => d.remove(), 1700);
   }
@@ -44,6 +46,16 @@ export class Hud {
     d.style.top = `${((1 - v.y) / 2) * r.height}px`;
     $("app").appendChild(d);
     setTimeout(() => d.remove(), 1100);
+  }
+
+  /** Character level beside the name, and the experience bar along the bottom. */
+  level(level: number, exp: number): void {
+    const lo = expForLevel(level), hi = expForLevel(level + 1), max = level >= MAX_LEVEL;
+    const pct = max ? 100 : Math.round(((exp - lo) / (hi - lo)) * 1000) / 10;
+    $("plevel").textContent = `Level ${level}`;
+    ($("xpfill") as HTMLElement).style.width = `${pct}%`;
+    $("xptext").textContent = max ? `Level ${level} · max` : `Level ${level} · ${Math.floor(exp - lo).toLocaleString("sv-SE")} / ${(hi - lo).toLocaleString("sv-SE")} XP`;
+    $("xpbar").setAttribute("aria-valuenow", String(Math.floor(pct)));
   }
 
   hp(now: number, max: number): void {

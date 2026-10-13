@@ -9,6 +9,7 @@ import { LocalNameRegistry, type NameRegistry } from "./names";
 import { FISH_TABLE } from "../data/resources";
 import { RECIPES, STATION_EMPTY, STATION_START, type Recipe } from "../data/recipes";
 import { SKILLS, levelForXp, type WeaponStyle } from "../data/skills";
+import { levelForExp } from "../data/levels";
 import type { EquipSlot, ItemId, SkillId } from "../data/types";
 import { CameraRig, bindPointer } from "../engine/controls";
 import { GLOW, HpBar, heldItems, humanoid, type Humanoid } from "../entities/models";
@@ -104,6 +105,7 @@ export class Game {
       take: items => { for (const [id, n] of Object.entries(items)) for (let i = 0; i < (n ?? 0); i++) this.take(id as ItemId); },
       give: id => this.giveItem(id),
       xp: (sk, amount) => this.gainXp(sk, amount),
+      exp: amount => this.gainExp(amount),
       message: (t, k) => this.hud.message(t, k),
       toast: (a, b) => this.hud.toast(a, b),
     });
@@ -162,6 +164,7 @@ export class Game {
   private welcome(first: boolean): void {
     const name = this.s.profile?.name ?? "";
     $("pname").textContent = name;
+    this.hud.level(this.combatLevel(), this.s.exp);
     this.hud.message(first ? `Välkommen till Ekdal, ${name}.` : `Välkommen tillbaka, ${name}.`, "sys");
     this.hud.message("Leta efter gula utropstecken. Där finns det folk som behöver hjälp.");
   }
@@ -171,9 +174,19 @@ export class Game {
   /* ---------- stats ---------- */
   level(skill: SkillId): number { return levelForXp(this.s.xp[skill]); }
   maxHp(): number { return this.level("hp"); }
-  combatLevel(): number {
-    const best = Math.max(this.level("onehand"), this.level("twohand"), this.level("dagger"), this.level("bow"));
-    return Math.floor(best * 0.5 + this.level("shield") * 0.25 + this.level("hp") * 0.25) + 1;
+  /** The character level, from kills and quests; monsters are compared against it. */
+  combatLevel(): number { return levelForExp(this.s.exp); }
+
+  gainExp(amount: number): void {
+    const before = this.combatLevel();
+    this.s.exp += amount;
+    const after = this.combatLevel();
+    this.hud.level(after, this.s.exp);
+    this.hud.xpDrop(null, amount);
+    if (after > before) {
+      this.hud.message(`Grattis! Du har nått level ${after}.`, "lvl");
+      this.hud.toast(`Level ${after}`, this.s.profile?.name ?? "");
+    }
   }
   /** The wielded weapon's fighting style; bare fists count as one-handed. */
   weaponStyle(): WeaponStyle { const w = this.s.equip.weapon; return (w && itemDef(w).equip?.style) || "onehand"; }
@@ -518,6 +531,7 @@ export class Game {
     this.s.kills[m.id] = (this.s.kills[m.id] ?? 0) + 1;
     // Experience comes per kill: the weapon's skill in full and a third to Hälsa. Sköld trains by blocking.
     const xp = m.def.xp;
+    this.gainExp(xp);
     this.gainXp(this.weaponStyle(), xp);
     this.gainXp("hp", Math.round(xp / 3));
     const loot: string[] = [];
