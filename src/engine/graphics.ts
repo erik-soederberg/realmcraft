@@ -1,6 +1,9 @@
 import * as THREE from "three";
 import { hash, vnoise } from "../core/noise";
 
+export type Quality = "low" | "medium" | "high";
+export const QUALITY_NAMES: Record<Quality, string> = { low: "Låg", medium: "Mellan", high: "Hög" };
+
 /** Renderer, sky, lighting and shared material helpers. */
 export class Graphics {
   readonly renderer: THREE.WebGLRenderer;
@@ -13,6 +16,7 @@ export class Graphics {
   /** Carried torch, lit only underground. */
   private readonly torch: THREE.PointLight;
   private inCave = false;
+  quality: Quality = "medium";
 
   constructor(host: HTMLElement) {
     const r = new THREE.WebGLRenderer({ antialias: true });
@@ -52,6 +56,24 @@ export class Graphics {
     sun.shadow.normalBias = 0.02;
     this.scene.add(sun, sun.target);
     this.sun = sun;
+  }
+
+  /**
+   * Low: no shadows and a reduced render resolution. Medium: soft shadows at
+   * half the map size and at most 1.25× pixel density. High: full shadows and
+   * up to 2× pixel density.
+   */
+  setQuality(q: Quality): void {
+    this.quality = q;
+    const dpr = window.devicePixelRatio || 1;
+    this.renderer.setPixelRatio(q === "low" ? Math.min(dpr, 1) * 0.75 : q === "medium" ? Math.min(dpr, 1.25) : Math.min(dpr, 2));
+    this.sun.castShadow = q !== "low";
+    const size = q === "high" ? 2048 : 1024;
+    if (this.sun.shadow.mapSize.x !== size) {
+      this.sun.shadow.mapSize.set(size, size);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
   }
 
   resize(w: number, h: number): void {

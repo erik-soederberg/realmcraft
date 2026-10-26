@@ -75,6 +75,8 @@ export class Mob {
   dead = false; respawnAt = 0; atkCd = 2; target = false; face: number; showBar = 0; flash = 0;
   /** Seconds since this mob last attacked, and seconds left of its death fall. */
   lunge = 9; dying = 0; walkPhase = 0;
+  /** Too far from the player to draw or animate. */
+  culled = false;
   constructor(readonly id: MobId, public x: number, public z: number, readonly home: [number, number], scene: THREE.Scene, seed: number) {
     this.def = MOBS[id];
     this.hp = this.def.hp;

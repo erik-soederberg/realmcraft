@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { castShadows, detailTex, jitter, mat } from "../engine/graphics";
 import type { MobDef, ResourceKind, StationKind } from "../data/types";
 
@@ -56,39 +57,56 @@ export interface ResourceModel {
   update?(clock: number): void;
 }
 
+const TREE_VARIANTS = 8;
+const foliageCache = new Map<string, THREE.BufferGeometry>();
+
+/** Merged foliage for one tree variant, with one geometry group per material (spruce: two greens; oak: bark, two greens). */
+function treeFoliage(kind: "tree" | "oak", v: number): THREE.BufferGeometry {
+  const key = kind + v;
+  const hit = foliageCache.get(key);
+  if (hit) return hit;
+  const seed = (v + 0.5) / TREE_VARIANTS, q = new THREE.Object3D();
+  const piece = (geo: THREE.BufferGeometry, place: (o: THREE.Object3D) => void) => {
+    q.position.set(0, 0, 0); q.rotation.set(0, 0, 0); q.scale.set(1, 1, 1); place(q); q.updateMatrix();
+    const g = (geo.index ? geo.toNonIndexed() : geo.clone()).applyMatrix4(q.matrix);
+    return g;
+  };
+  const byMat: THREE.BufferGeometry[][] = kind === "tree" ? [[], []] : [[], [], []];
+  if (kind === "tree") {
+    const H = 2.3 + seed * 0.9;
+    for (let i = 0; i < 7; i++) {
+      const t = i / 6, rad = 1.0 - t * 0.78, h = 0.8 - t * 0.2;
+      byMat[i % 2].push(piece(G.spruce[(i + ((seed * 3) | 0)) % 3], o => { o.scale.set(rad, h, rad); o.position.y = 0.75 + t * (H - 0.9); o.rotation.y = i * 1.3 + seed * 5; }));
+    }
+  } else {
+    for (const [bx, bz, rz] of [[0.25, 0, -0.7], [-0.22, 0.1, 0.8], [0, -0.25, 0.6]])
+      byMat[0].push(piece(G.trunk, o => { o.scale.set(0.8, 0.7, 0.8); o.position.set(bx, 1.25, bz); o.rotation.set(bz * 2, 0, rz); }));
+    const clumps = [[0, 1.75, 0, 1.25], [0.55, 1.55, 0.2, 0.95], [-0.5, 1.6, -0.2, 1.0], [0.1, 2.2, 0.15, 0.95], [-0.2, 1.5, 0.5, 0.85], [0.3, 1.6, -0.5, 0.85], [-0.1, 2.05, -0.35, 0.8]];
+    clumps.forEach(([bx, by, bz, sc], i) => byMat[1 + (i % 2)].push(piece(G.clump[i % 3], o => { o.position.set(bx, by, bz); o.scale.setScalar(sc); o.rotation.set(seed * 6 + i, i, seed * 3); })));
+  }
+  const merged = mergeGeometries(byMat.map(list => mergeGeometries(list)), true);
+  foliageCache.set(key, merged);
+  return merged;
+}
+
 export function resourceModel(kind: ResourceKind, seed: number): ResourceModel {
   const g = new THREE.Group();
   if (kind === "tree" || kind === "oak") {
-    const fol = new THREE.Group();
+    // Foliage is one pre-merged mesh per tree variant, so a tree costs two draw calls instead of nine.
+    const v = Math.min(TREE_VARIANTS - 1, Math.floor(seed * TREE_VARIANTS)), vs = (v + 0.5) / TREE_VARIANTS;
     let trunk: THREE.Mesh;
+    let fol: THREE.Mesh;
     if (kind === "tree") {
-      const H = 2.3 + seed * 0.9;
+      const H = 2.3 + vs * 0.9;
       trunk = new THREE.Mesh(G.trunk, M.trunk);
       trunk.scale.set(0.9, H * 0.55, 0.9);
       trunk.position.y = H * 0.275;
-      for (let i = 0; i < 7; i++) {
-        const t = i / 6, rad = 1.0 - t * 0.78, h = 0.8 - t * 0.2;
-        const c = new THREE.Mesh(G.spruce[(i + ((seed * 3) | 0)) % 3], i % 2 ? M.spruce2 : M.spruce);
-        c.scale.set(rad, h, rad);
-        c.position.y = 0.75 + t * (H - 0.9);
-        c.rotation.y = i * 1.3 + seed * 5;
-        fol.add(c);
-      }
+      fol = new THREE.Mesh(treeFoliage("tree", v), [M.spruce, M.spruce2]);
     } else {
       trunk = new THREE.Mesh(G.trunk, M.bark);
       trunk.scale.set(2.1, 1.25, 2.1);
       trunk.position.y = 0.62;
-      for (const [bx, bz, rz] of [[0.25, 0, -0.7], [-0.22, 0.1, 0.8], [0, -0.25, 0.6]]) {
-        const br = new THREE.Mesh(G.trunk, M.bark);
-        br.scale.set(0.8, 0.7, 0.8); br.position.set(bx, 1.25, bz); br.rotation.set(bz * 2, 0, rz);
-        fol.add(br);
-      }
-      const clumps = [[0, 1.75, 0, 1.25], [0.55, 1.55, 0.2, 0.95], [-0.5, 1.6, -0.2, 1.0], [0.1, 2.2, 0.15, 0.95], [-0.2, 1.5, 0.5, 0.85], [0.3, 1.6, -0.5, 0.85], [-0.1, 2.05, -0.35, 0.8]];
-      clumps.forEach(([bx, by, bz, sc], i) => {
-        const b = new THREE.Mesh(G.clump[i % 3], i % 2 ? M.oak2 : M.oak);
-        b.position.set(bx, by, bz); b.scale.setScalar(sc); b.rotation.set(seed * 6 + i, i, seed * 3);
-        fol.add(b);
-      });
+      fol = new THREE.Mesh(treeFoliage("oak", v), [M.bark, M.oak, M.oak2]);
     }
     g.add(trunk, fol);
     g.scale.setScalar(0.95 + seed * 0.3);
@@ -456,7 +474,10 @@ function glyphTexture(glyph: string, color: string): THREE.Texture {
 export class QuestMarker {
   readonly sprite = new THREE.Sprite(new THREE.SpriteMaterial({ depthTest: false, fog: false }));
   constructor() { this.sprite.scale.set(0.5, 0.5, 1); this.sprite.renderOrder = 8; this.sprite.visible = false; }
+  /** Whether the NPC has something to show; the sprite is also hidden when culled. */
+  shown = false;
   set(kind: "!" | "?" | null): void {
+    this.shown = !!kind;
     this.sprite.visible = !!kind;
     if (kind) { this.sprite.material.map = glyphTexture(kind, kind === "!" ? "#f3d23a" : "#c9c9c9"); this.sprite.material.needsUpdate = true; }
   }

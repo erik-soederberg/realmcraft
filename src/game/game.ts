@@ -23,7 +23,7 @@ import { NamePlates, type PlateInfo } from "../ui/nameplates";
 import { nearestBeside, nearestReachable, reach } from "../world/pathfinding";
 import { RegionTerrain } from "../world/terrain";
 import { World } from "../world/world";
-import { Graphics } from "../engine/graphics";
+import { Graphics, QUALITY_NAMES, type Quality } from "../engine/graphics";
 import { QuestEngine } from "./quests";
 import { clearSave, freshState, loadSaved, restoreState, writeSave, type GameState } from "./state";
 
@@ -70,6 +70,7 @@ export class Game {
   private marker: THREE.Group;
   private markerT = 9;
   private houses: House[] = [];
+  private cullAcc = 9;
   private arrows: { mesh: THREE.Group; from: THREE.Vector3; mob: Mob; t: number; land: () => void }[] = [];
   private hoverAt: [number, number] | null = null;
   private hoverDirty = false;
@@ -641,6 +642,18 @@ export class Game {
     });
     $("zin").addEventListener("click", () => this.rig.zoom(-2));
     $("zout").addEventListener("click", () => this.rig.zoom(2));
+    let saved: string | null = null;
+    try { saved = localStorage.getItem("ekdal-gfx"); } catch { /* storage blocked */ }
+    this.setQuality(saved === "low" || saved === "high" ? saved : "medium");
+    const gfxBtn = $("gfx");
+    const order: Quality[] = ["low", "medium", "high"];
+    const syncGfx = () => { const n = QUALITY_NAMES[this.gfx.quality]; gfxBtn.title = `Grafik: ${n}`; gfxBtn.setAttribute("aria-label", `Grafik: ${n}, klicka för att byta`); gfxBtn.dataset.q = this.gfx.quality; };
+    syncGfx();
+    gfxBtn.addEventListener("click", () => {
+      this.setQuality(order[(order.indexOf(this.gfx.quality) + 1) % order.length]);
+      syncGfx();
+      this.hud.toast(`Grafik: ${QUALITY_NAMES[this.gfx.quality]}`, this.gfx.quality === "low" ? "Inga skuggor, lägre upplösning" : this.gfx.quality === "medium" ? "Skuggor, normal upplösning" : "Skarpa skuggor, full upplösning");
+    });
     $("minimap").addEventListener("click", e => {
       const [x, z] = this.minimap.toWorld(e.clientX, e.clientY, this.fx, this.fz, this.rig.yaw);
       this.showMarker(new THREE.Vector3(x + 0.5, this.world.tileY(x, z), z + 0.5), false);
@@ -790,7 +803,8 @@ export class Game {
       const want = inside ? 0.28 : 1, sy = h.model.walls.scale.y;
       h.model.walls.scale.y = sy + (want - sy) * Math.min(1, dt * 8);
     }
-    for (const t of this.terrains) t.update(this.clock);
+    if ((this.cullAcc += dt) > 0.3) { this.cullAcc = 0; this.cull(); }
+    for (const t of this.terrains) if (t.group.visible) t.update(this.clock);
     for (const n of this.resources) n.model.update?.(this.clock);
     GLOW.emissiveIntensity = 2.0 + Math.sin(this.clock * 9) * 0.25 + Math.sin(this.clock * 23) * 0.15;
     for (const n of this.npcs) {
@@ -842,6 +856,32 @@ export class Game {
       this.marker.scale.setScalar(Math.max(0.01, 1 - this.markerT * 0.6));
       this.marker.rotation.y = this.markerT * 1.5;
       if (this.markerT > 0.9) this.marker.visible = false;
+    }
+  }
+
+  /** Applies and remembers the graphics setting. */
+  setQuality(q: Quality): void {
+    this.gfx.setQuality(q);
+    for (const t of this.terrains) t.grass.visible = q !== "low" || !!t.region.def.cave;
+    try { localStorage.setItem("ekdal-gfx", q); } catch { /* private mode: setting lasts this session */ }
+    this.resize();
+  }
+
+  /**
+   * Hides everything further away than the camera can usefully show, so a
+   * bigger world does not cost more per frame. Runs a few times a second.
+   */
+  private cull(): void {
+    const R = 26 + this.rig.dist * 1.4, R2 = R * R, px = this.fx, pz = this.fz;
+    const near = (x: number, z: number) => (x - px) ** 2 + (z - pz) ** 2 < R2;
+    for (const r of this.resources) r.model.group.visible = near(r.x, r.z);
+    for (const s of this.stations) s.group.visible = near(s.x, s.z);
+    for (const n of this.npcs) { const v = near(n.x, n.z); n.model.group.visible = v; n.marker.sprite.visible = v && n.marker.shown; }
+    for (const m of this.mobs) { m.culled = !near(m.fx, m.fz); m.group.visible = !m.culled && (!m.dead || m.dying > 0); }
+    for (const h of this.houses) h.model.group.visible = near((h.x0 + h.x1) / 2, (h.z0 + h.z1) / 2);
+    for (const t of this.terrains) {
+      const r = t.region, dx = Math.max(r.ox - px, 0, px - (r.ox + r.w)), dz = Math.max(r.oz - pz, 0, pz - (r.oz + r.h));
+      t.group.visible = dx * dx + dz * dz < R2 * 1.5;
     }
   }
 

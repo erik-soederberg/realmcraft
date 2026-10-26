@@ -18,13 +18,16 @@ const TILE_COLORS: Record<number, THREE.Color> = {
 export class RegionTerrain {
   readonly group = new THREE.Group();
   readonly ground: THREE.Mesh;
+  /** Grass blades (or stalagmites underground); hidden on the lowest graphics setting. */
+  readonly grass: THREE.InstancedMesh;
   private readonly water: THREE.Mesh;
   private readonly waterBase: Float32Array;
 
-  constructor(world: World, region: Region) {
+  constructor(world: World, readonly region: Region) {
     this.ground = buildGround(world, region);
     this.group.add(this.ground, buildPebbles(world, region));
-    this.group.add(region.def.cave ? buildStalagmites(world, region) : buildGrass(world, region));
+    this.grass = region.def.cave ? buildStalagmites(world, region) : buildGrass(world, region);
+    this.group.add(this.grass);
     const under = new THREE.Mesh(new THREE.BoxGeometry(region.w, 3, region.h), mat("#2b251d"));
     under.position.set(region.ox + region.w / 2, -2.3, region.oz + region.h / 2);
     this.group.add(under);
