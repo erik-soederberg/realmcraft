@@ -9,6 +9,8 @@ const TILE_COLORS: Record<number, THREE.Color> = {
   [Tile.Path]: new THREE.Color("#544839"),
   [Tile.Dirt]: new THREE.Color("#4c443b"),
   [Tile.Water]: new THREE.Color("#3a3a2e"),
+  [Tile.Rock]: new THREE.Color("#3b3934"),
+  [Tile.Floor]: new THREE.Color("#4a3a28"),
   [Tile.Void]: new THREE.Color("#384422"),
 };
 
@@ -16,12 +18,16 @@ const TILE_COLORS: Record<number, THREE.Color> = {
 export class RegionTerrain {
   readonly group = new THREE.Group();
   readonly ground: THREE.Mesh;
+  /** Grass blades (or stalagmites underground); hidden on the lowest graphics setting. */
+  readonly grass: THREE.InstancedMesh;
   private readonly water: THREE.Mesh;
   private readonly waterBase: Float32Array;
 
-  constructor(world: World, region: Region) {
+  constructor(world: World, readonly region: Region) {
     this.ground = buildGround(world, region);
-    this.group.add(this.ground, buildGrass(world, region), buildPebbles(world, region));
+    this.group.add(this.ground, buildPebbles(world, region));
+    this.grass = region.def.cave ? buildStalagmites(world, region) : buildGrass(world, region);
+    this.group.add(this.grass);
     const under = new THREE.Mesh(new THREE.BoxGeometry(region.w, 3, region.h), mat("#2b251d"));
     under.position.set(region.ox + region.w / 2, -2.3, region.oz + region.h / 2);
     this.group.add(under);
@@ -33,11 +39,13 @@ export class RegionTerrain {
     );
     this.water.rotation.x = -Math.PI / 2;
     this.water.position.set(region.ox + region.w / 2, WATER_LEVEL, region.oz + region.h / 2);
+    this.water.visible = !region.def.cave;
     this.waterBase = (this.water.geometry.attributes.position.array as Float32Array).slice();
     this.group.add(this.water);
   }
 
   update(clock: number): void {
+    if (!this.water.visible) return;
     const wa = this.water.geometry.attributes.position, b = this.waterBase, arr = wa.array as Float32Array;
     for (let i = 0; i < wa.count; i++) {
       const x = b[i * 3], y = b[i * 3 + 1];
@@ -112,6 +120,31 @@ function buildGrass(world: World, region: Region): THREE.InstancedMesh {
     im.setMatrixAt(i, q.matrix);
     im.setColorAt(i, gc.copy(a).lerp(r1 > 0.85 ? b : c, Math.abs(r2 - 0.5) * 1.6));
   });
+  im.receiveShadow = true;
+  return im;
+}
+
+/** Spikes of stone rising from the rock along the cave walls and a few out on the floor. */
+function buildStalagmites(world: World, region: Region): THREE.InstancedMesh {
+  const cone = jitter(new THREE.ConeGeometry(0.16, 1, 6, 3), 0.05, 11);
+  cone.translate(0, 0.5, 0);
+  const spots: [number, number, number][] = [];
+  for (let z = region.oz; z < region.oz + region.h; z++) for (let x = region.ox; x < region.ox + region.w; x++) {
+    const t = world.tile(x, z), r = hash(x * 7, z * 3);
+    const wall = t === Tile.Rock && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dz]) => world.tile(x + dx, z + dz) === Tile.Dirt);
+    if (wall && r < 0.4) spots.push([x + hash(x, z * 5), z + hash(x * 9, z), 0.5 + hash(x, x + z) * 0.8]);
+    else if (t === Tile.Dirt && r < 0.03) spots.push([x + 0.2 + r * 10, z + 0.5, 0.4 + r * 15]);
+  }
+  const im = new THREE.InstancedMesh(cone, mat("#4a4640", { flatShading: true, map: detailTex, bumpMap: detailTex, bumpScale: 2 }), spots.length);
+  const q = new THREE.Object3D();
+  spots.forEach(([fx, fz, h], i) => {
+    q.position.set(fx, world.heightAt(fx, fz) - 0.1, fz);
+    q.rotation.set((hash(i, 2) - 0.5) * 0.25, hash(i, 4) * 6.28, (hash(i, 6) - 0.5) * 0.25);
+    q.scale.set(0.7 + hash(i, 8) * 0.8, h, 0.7 + hash(i, 9) * 0.8);
+    q.updateMatrix();
+    im.setMatrixAt(i, q.matrix);
+  });
+  im.castShadow = true;
   im.receiveShadow = true;
   return im;
 }

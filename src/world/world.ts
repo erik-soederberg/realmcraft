@@ -1,7 +1,7 @@
 import { fbm, hash, smooth } from "../core/noise";
-import type { RegionDef } from "../data/types";
+import type { BuildingDef, RegionDef } from "../data/types";
 
-export enum Tile { Grass = 0, Water = 1, Sand = 2, Path = 3, Dirt = 4, Void = 255 }
+export enum Tile { Grass = 0, Water = 1, Sand = 2, Path = 3, Dirt = 4, Rock = 5, Floor = 6, Void = 255 }
 export const WATER_LEVEL = -0.14;
 
 /** One authored area of the world with its own tile grid. */
@@ -19,7 +19,15 @@ export class Region {
     this.tiles = new Uint8Array(this.w * this.h);
     this.blocked = new Uint8Array(this.w * this.h);
     generateTiles(this);
-    for (let i = 0; i < this.tiles.length; i++) if (this.tiles[i] === Tile.Water) this.blocked[i] = 1;
+    for (let i = 0; i < this.tiles.length; i++) if (this.tiles[i] === Tile.Water || this.tiles[i] === Tile.Rock) this.blocked[i] = 1;
+    // House walls: the outer ring of each footprint, except the doorway.
+    for (const b of def.buildings ?? []) {
+      const [bx, bz] = b.at, [bw, bd] = b.size;
+      for (let z = bz; z < bz + bd; z++) for (let x = bx; x < bx + bw; x++) {
+        const ring = x === bx || z === bz || x === bx + bw - 1 || z === bz + bd - 1;
+        if (ring && !(x === b.door[0] && z === b.door[1])) this.blocked[z * this.w + x] = 1;
+      }
+    }
   }
   contains(x: number, z: number): boolean {
     return x >= this.ox && z >= this.oz && x < this.ox + this.w && z < this.oz + this.h;
@@ -34,6 +42,7 @@ export class Region {
 function generateTiles(r: Region): void {
   const { w, h, tiles, def } = r;
   const set = (x: number, z: number, t: Tile) => { if (x >= 0 && z >= 0 && x < w && z < h) tiles[z * w + x] = t; };
+  if (def.cave) return carveCave(r);
   for (let z = 0; z < h; z++) for (let x = 0; x < w; x++) {
     const wx = x + r.ox, wz = z + r.oz;
     for (const f of def.features) {
@@ -50,6 +59,14 @@ function generateTiles(r: Region): void {
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) if (water(x + dx, z + dz)) near = true;
     if (near) tiles[z * w + x] = Tile.Sand;
   }
+  // houses: a trodden yard around each, plank floor inside
+  for (const b of def.buildings ?? []) {
+    const [bx, bz] = b.at, [bw, bd] = b.size;
+    for (let z = bz - 1; z <= bz + bd; z++) for (let x = bx - 1; x <= bx + bw; x++) {
+      const inside = x >= bx && z >= bz && x < bx + bw && z < bz + bd;
+      if (inside || !water(x, z)) set(x, z, inside ? Tile.Floor : Tile.Path);
+    }
+  }
   // winding paths between the given points
   for (const f of def.features) {
     if (f.type !== "path") continue;
@@ -60,6 +77,23 @@ function generateTiles(r: Region): void {
         const t = i / steps, wob = Math.sin(t * Math.PI * 2) * 1.2;
         const x = Math.round(ax + (bx - ax) * t + wob * 0.6), z = Math.round(az + (bz - az) * t - wob * 0.4);
         for (const dx of [0, 1]) if (!water(x + dx, z)) set(x + dx, z, Tile.Path);
+      }
+    }
+  }
+}
+
+/** Fills a cave region with rock, then carves its chambers and tunnels into dirt floor with ragged edges. */
+function carveCave(r: Region): void {
+  const { w, h, tiles, def } = r;
+  tiles.fill(Tile.Rock);
+  for (let z = 1; z < h - 1; z++) for (let x = 1; x < w - 1; x++) {
+    const wx = x + r.ox, wz = z + r.oz, rag = (fbm(wx * 0.35 + 5, wz * 0.35) - 0.5) * 2.4;
+    for (const f of def.features) {
+      if (f.type === "chamber" && Math.hypot(x - f.x, z - f.z) + rag < f.r) tiles[z * w + x] = Tile.Dirt;
+      if (f.type === "tunnel") for (let p = 0; p + 1 < f.points.length; p++) {
+        const [ax, az] = f.points[p], [bx, bz] = f.points[p + 1], dx = bx - ax, dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz)));
+        if (Math.hypot(x - (ax + dx * t), z - (az + dz * t)) + rag * 0.4 < f.width) tiles[z * w + x] = Tile.Dirt;
       }
     }
   }
@@ -94,15 +128,31 @@ export class World {
     if (r) r.blocked[r.index(x, z)] = b ? 1 : 0;
   }
 
+  /** The building whose footprint covers a world tile, if any. */
+  buildingAt(x: number, z: number): { region: Region; b: BuildingDef } | undefined {
+    const r = this.regionAt(x, z);
+    for (const b of r?.def.buildings ?? []) {
+      const lx = x - r!.ox, lz = z - r!.oz;
+      if (lx >= b.at[0] && lz >= b.at[1] && lx < b.at[0] + b.size[0] && lz < b.at[1] + b.size[1]) return { region: r!, b };
+    }
+    return undefined;
+  }
+  /** Rolling hills before tile types are applied. */
+  private hills(x: number, z: number): number { return fbm(x * 0.09 + 3, z * 0.09 + 11) * 1.3 + fbm(x * 0.3, z * 0.3) * 0.25; }
+  /** Floor height of a building: level everywhere, taken from the ground at its centre. */
+  floorY(r: Region, b: BuildingDef): number { return 0.12 + this.hills(r.ox + b.at[0] + b.size[0] / 2, r.oz + b.at[1] + b.size[1] / 2) * 0.7; }
+
   /** Base height of a tile centre before smoothing. */
   private tileBase(x: number, z: number): number {
     const key = (x + 4096) * 8192 + (z + 4096);
     let v = this.baseCache.get(key);
     if (v !== undefined) return v;
     const t = this.tile(x, z);
-    const hills = fbm(x * 0.09 + 3, z * 0.09 + 11) * 1.3 + fbm(x * 0.3, z * 0.3) * 0.25;
+    const hills = this.hills(x, z);
+    if (t === Tile.Floor) { const h = this.buildingAt(x, z); if (h) { v = this.floorY(h.region, h.b); this.baseCache.set(key, v); return v; } }
     v = t === Tile.Water ? -0.75 : t === Tile.Sand ? hills * 0.15 : t === Tile.Path ? 0.05 + hills * 0.7
-      : t === Tile.Dirt ? 0.35 + hills * 0.8 + fbm(x * 0.45, z * 0.45) * 0.5 : 0.08 + hills;
+      : t === Tile.Dirt ? 0.35 + hills * 0.8 + fbm(x * 0.45, z * 0.45) * 0.5
+      : t === Tile.Rock ? 2.4 + fbm(x * 0.5 + 17, z * 0.5) * 1.6 : 0.08 + hills;
     this.baseCache.set(key, v);
     return v;
   }
@@ -114,6 +164,7 @@ export class World {
     return this.bilinear(fx, fz, (x, z) => (this.tile(x, z) === Tile.Water ? 1 : 0));
   }
   heightAt(fx: number, fz: number): number {
+    if (this.tile(Math.floor(fx), Math.floor(fz)) === Tile.Floor) return this.tileBase(Math.floor(fx), Math.floor(fz));
     const w = Math.min(1, this.waterAmount(fx, fz) * 1.6);
     const h = this.bilinear(fx, fz, (x, z) => this.tileBase(x, z)) + (fbm(fx * 0.7 + 40, fz * 0.7) - 0.5) * 0.16;
     return h * (1 - w) - 0.8 * w;

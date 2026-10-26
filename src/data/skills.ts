@@ -1,11 +1,15 @@
 export const SKILLS = {
+  onehand: { name: "Enhandsvapen" },
+  twohand: { name: "Tvåhandsvapen" },
+  dagger: { name: "Dolk" },
+  bow: { name: "Bågskytte" },
+  shield: { name: "Sköld" },
+  hp: { name: "Hälsa" },
   wc: { name: "Träfällning" },
   mining: { name: "Gruvdrift" },
   fishing: { name: "Fiske" },
   smithing: { name: "Smide" },
   cooking: { name: "Matlagning" },
-  melee: { name: "Närstrid" },
-  hp: { name: "Hälsa" },
 } as const;
 
 /** Classic MMO experience curve: level 2 at 83 XP, level 99 at about 13 million. */
@@ -24,3 +28,6 @@ export function levelForXp(xp: number): number {
   while (l < 99 && xp >= XP_TABLE[l + 1]) l++;
   return l;
 }
+
+/** Fighting styles; each trains the skill of the same name. */
+export type WeaponStyle = "onehand" | "twohand" | "dagger" | "bow";
