@@ -4,11 +4,27 @@ Ett modernt spel i RuneScape-anda som körs i webbläsaren: samla, tillverka, sl
 
 ## Kom igång
 
+Du behöver [Node.js](https://nodejs.org) (LTS-versionen, 20 eller senare) och [Git](https://git-scm.com).
+
 ```sh
+git clone https://github.com/erik-soederberg/realmcraft.git
+cd realmcraft
 npm install
 npm run dev      # utvecklingsserver på http://localhost:5173
-npm run build    # typkontroll och en fristående dist/index.html
 ```
+
+Öppna adressen som visas i terminalen. Sidan laddas om av sig själv när du sparar en fil.
+
+```sh
+npm run build    # typkontroll och en fristående dist/index.html
+npm run preview  # kör det byggda spelet lokalt
+```
+
+`dist/index.html` är hela spelet i en fil, som går att dela och öppna direkt i webbläsaren.
+
+### Testa på mobilen
+
+Kör `npm run dev -- --host` och öppna adressen under `Network` på mobilen. Datorn och mobilen måste vara på samma wifi.
 
 ## Kontroller
 
@@ -26,10 +42,10 @@ src/
     quests.ts  Uppdrag med steg och belöningar
     items.ts, mobs.ts, recipes.ts, resources.ts, skills.ts, goals.ts
   world/       Världen: områden på ett globalt rutnät, höjdfunktion, terräng, vägsökning
-  entities/    Resurser, stationer, monster, NPC:er och deras 3D-modeller
+  entities/    Resurser, stationer, monster, NPC:er, 3D-modeller och animationer
   game/        Spelloopen (0,6 s tick), sparning och uppdragsmotorn
-  engine/      Rendering, himmel, ljus och kamera
-  ui/          Panel, chatt, dialogruta, minikarta och ikoner
+  engine/      Rendering, himmel, ljus, kamera och grafikinställning
+  ui/          Panel, chatt, dialogruta, minikarta, namnskyltar och ikoner
 ```
 
 ### Lägga till innehåll
@@ -37,6 +53,8 @@ src/
 - **Ett nytt område:** skapa `src/data/regions/<namn>.ts` med en `origin` bredvid ett befintligt område och lägg till det i `regions/index.ts`. Höjden räknas från världskoordinater, så områden som ligger kant i kant möts utan skarvar.
 - **En ny NPC med uppdrag:** lägg till uppdraget i `quests.ts`, NPC:n med dialognoder i `npcs.ts` och placera den i ett områdes `npcs`. Dialogen väljer den första nod vars villkor stämmer, och åtgärder som `startQuest`, `take` och `completeQuest` driver uppdraget framåt.
 - **Ett nytt föremål, monster eller recept:** en rad i respektive datafil.
+
+Regler och arbetssätt för Claude finns i [`CLAUDE.md`](CLAUDE.md).
 
 ## Spelarnamn
 
